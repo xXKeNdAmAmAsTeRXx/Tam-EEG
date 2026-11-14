@@ -12,7 +12,6 @@ def fitted():
     y = np.array([0] * 6 + [1] * 6)
     clf = ReveSVMClassifier(
         electrodes=["F3", "F4", "C3", "C4", "P3", "P4", "O1", "O2"],
-        batch_size=4,
     )
     try:
         clf.fit(X, y)
@@ -31,10 +30,10 @@ def test_fit_predict_proba(fitted):
 
 def test_frozen_weights(fitted):
     clf, *_ = fitted
-    for model in (clf._pos_model, clf._signal_model):
-        assert model.training is False
-        for param in model.parameters():
-            assert param.requires_grad is False
+    model = clf.signal_embedding_model
+    assert model.training is False
+    for param in model.parameters():
+        assert param.requires_grad is False
 
 
 def test_clone_and_params(fitted):
