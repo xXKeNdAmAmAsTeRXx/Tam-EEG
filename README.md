@@ -4,14 +4,15 @@ Heroes of The Brain Neurohackathon 2026!
 
 ## Architecture
 
-The system is split into three main packages, each with a single responsibility.
+The system is split into several packages, each with a single responsibility.
 More packages (UI layers, additional connections, etc.) may be added later.
 
     src/hotb_2026/
     ├── brainaccess_connection/   # connection to BrainAccess EEG hardware
     ├── preprocessing/            # per-window cleaning and standardization
-    ├── reve_processor/           # REVE processing of the incoming signal
-    └── state_aware_agent/        # state-aware decision-making and agent logic
+    ├── classification/           # REVE embeddings + SVM classifier
+    ├── mappers/                  # adapters between package models
+    └── state_aware_agent/        # planned: state-aware decision-making
 
 - **`brainaccess_connection`** — handles connecting to and streaming data from the
   BrainAccess EEG device. See
@@ -22,10 +23,17 @@ More packages (UI layers, additional connections, etc.) may be added later.
   [`src/hotb_2026/preprocessing/README.md`](src/hotb_2026/preprocessing/README.md)
   and the demo notebook
   [`notebooks/preprocessing/01_preprocessing.ipynb`](notebooks/preprocessing/01_preprocessing.ipynb).
-- **`reve_processor`** — processes the cleaned signal (REVE) and produces
-  features for downstream packages.
-- **`state_aware_agent`** — consumes the processed state and drives the
-  state-aware agent behavior.
+- **`classification`** — embeds each preprocessed window with a frozen REVE
+  transformer (`brain-bzh/reve-base`) and classifies the pooled embedding with a
+  scikit-learn SVM. See
+  [`src/hotb_2026/classification/model/ReveSVMClassifier.py`](src/hotb_2026/classification/model/ReveSVMClassifier.py)
+  and the REVE notebook
+  [`notebooks/reve_model/01_reve_embddings.ipynb`](notebooks/reve_model/01_reve_embddings.ipynb).
+- **`mappers`** — small adapters between package models, e.g.
+  `montage_to_list_electrode` turns a `Montage` into the electrode-name list
+  REVE's position encoding expects.
+- **`state_aware_agent`** — planned, not implemented yet. Will consume the
+  classified state and drive the agent behavior.
 
 These packages are not the full set — new packages (e.g. UI, other connections)
 can be added alongside them in `src/hotb_2026/`.
@@ -76,5 +84,5 @@ Examples:
 Examples:
 
     add(brainaccess_connection): connect to eeg device
-    fix(reve_processor): handle empty signal
+    fix(classification): handle empty signal
     chore(readme): add architecture section
