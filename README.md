@@ -13,7 +13,9 @@ More packages (UI layers, additional connections, etc.) may be added later.
     └── state_aware_agent/        # state-aware decision-making and agent logic
 
 - **`brainaccess_connection`** — handles connecting to and streaming data from the
-  BrainAccess EEG device.
+  BrainAccess EEG device. See
+  [`src/hotb_2026/brainaccess_connection/README.md`](src/hotb_2026/brainaccess_connection/README.md)
+  for hardware notes, CLI usage, and the LSL stream layout.
 - **`reve_processor`** — processes the incoming signal (REVE) and produces clean,
   usable data for downstream packages.
 - **`state_aware_agent`** — consumes the processed state and drives the
@@ -21,6 +23,25 @@ More packages (UI layers, additional connections, etc.) may be added later.
 
 The three packages are not the full set — new packages (e.g. UI, other
 connections) can be added alongside them in `src/hotb_2026/`.
+
+## Quick start: BrainAccess EEG
+
+```bash
+uv sync
+uv run hotb-brainaccess --scan          # list nearby headsets (~5 s)
+uv run hotb-brainaccess                 # stream the configured headset
+uv run hotb-brainaccess --simulate      # 250 Hz fake signal, no hardware
+```
+
+The headset, electrode layout, rate and bias come from
+[`config.py`](src/hotb_2026/brainaccess_connection/config.py) (default device:
+`BA MINI 078`, 250 Hz). Edit that file to point at a different headset or cap,
+or pass `--sfreq 500` for the higher hardware rate. The MINI supports 250 or
+500 Hz only.
+
+The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`, 8 channels
+in µV at the configured rate. Full CLI and troubleshooting docs live in the
+[package README](src/hotb_2026/brainaccess_connection/README.md).
 
 ## Git Convention
 

@@ -1,7 +1,7 @@
 [project]
 name = "hotb-2026"
 version = "0.1.0"
-description = "Add your description here"
+description = "Heroes of The Brain 2026: BrainAccess EEG streaming and processing"
 readme = "README.md"
 authors = [
     { email = "frkubala@student.agh.edu.pl" }
@@ -10,11 +10,21 @@ requires-python = ">=3.13"
 dependencies = [
     "brainaccess>=4.0.0",
     "numpy>=2.5.4",
+    "pylsl>=1.18.7",
+    "scipy>=1.18.1",
 ]
 
 [project.scripts]
 hotb-2026 = "hotb_2026:main"
+hotb-brainaccess = "hotb_2026.brainaccess_connection.main:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
 build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "pytest>=9.2.0",
+]
