@@ -5,6 +5,14 @@ from __future__ import annotations
 import argparse
 import sys
 
+from hotb_2026.tamagotchi.config import (
+    DEFAULT_CLEAN_AMOUNT,
+    DEFAULT_FEED_AMOUNT,
+    DEFAULT_PET_KIND,
+    DEFAULT_PET_NAME,
+    DEFAULT_PLAY_AMOUNT,
+    DEFAULT_TICK_SECONDS,
+)
 from hotb_2026.tamagotchi.render import install
 from hotb_2026.tamagotchi.pets import list_pets
 from hotb_2026.tamagotchi.core.constants import state_dir
@@ -101,10 +109,10 @@ def build_parser() -> argparse.ArgumentParser:
     sub = parser.add_subparsers(dest="command", required=True)
 
     p = sub.add_parser("init", help="create a new pet")
-    p.add_argument("--name", default="Brainy")
+    p.add_argument("--name", default=DEFAULT_PET_NAME)
     p.add_argument(
         "--pet",
-        default="cat",
+        default=DEFAULT_PET_KIND,
         metavar="KIND",
         help=f"pet plugin to use (one of: {', '.join(list_pets())})",
     )
@@ -112,15 +120,15 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_init)
 
     for name, amount, help_text in (
-        ("feed", 20.0, "feed the pet (hunger up)"),
-        ("clean", 25.0, "clean the pet (hygiene up)"),
+        ("feed", DEFAULT_FEED_AMOUNT, "feed the pet (hunger up)"),
+        ("clean", DEFAULT_CLEAN_AMOUNT, "clean the pet (hygiene up)"),
     ):
         p = sub.add_parser(name, help=help_text)
         p.add_argument("--amount", type=float, default=amount)
         p.set_defaults(func=getattr(sys.modules[__name__], f"cmd_{name}"))
 
     p = sub.add_parser("play", help="play with the pet (happiness up)")
-    p.add_argument("--amount", type=float, default=10.0)
+    p.add_argument("--amount", type=float, default=DEFAULT_PLAY_AMOUNT)
     p.set_defaults(func=cmd_play)
 
     p = sub.add_parser("status", help="print the current status frame")
@@ -131,7 +139,7 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_state)
 
     p = sub.add_parser("daemon", help="run the background loop in the foreground")
-    p.add_argument("--tick", type=float, default=60.0, help="tick seconds")
+    p.add_argument("--tick", type=float, default=DEFAULT_TICK_SECONDS, help="tick seconds")
     p.set_defaults(func=cmd_daemon)
 
     p = sub.add_parser("install-hook", help="install the shell prompt hook")

@@ -11,7 +11,8 @@ More packages (UI layers, additional connections, etc.) may be added later.
     ├── brainaccess_connection/   # connection to BrainAccess EEG hardware
     ├── preprocessing/            # per-window cleaning and standardization
     ├── reve_processor/           # REVE processing of the incoming signal
-    └── state_aware_agent/        # state-aware decision-making and agent logic
+    ├── state_aware_agent/        # state-aware decision-making and agent logic
+    └── tamagotchi/              # neuro-tamagotchi: pet driven by UserState
 
 - **`brainaccess_connection`** — handles connecting to and streaming data from the
   BrainAccess EEG device. See
@@ -26,6 +27,9 @@ More packages (UI layers, additional connections, etc.) may be added later.
   features for downstream packages.
 - **`state_aware_agent`** — consumes the processed state and drives the
   state-aware agent behavior.
+- **`tamagotchi`** — a pet whose happiness follows the reported
+  `UserState` (daemon + state file + shell hook + CLI). See
+  [`src/hotb_2026/tamagotchi/README.md`](src/hotb_2026/tamagotchi/README.md).
 
 These packages are not the full set — new packages (e.g. UI, other connections)
 can be added alongside them in `src/hotb_2026/`.
@@ -48,6 +52,17 @@ or pass `--sfreq 500` for the higher hardware rate. The MINI supports 250 or
 The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`, 8 channels
 in µV at the configured rate. Full CLI and troubleshooting docs live in the
 [package README](src/hotb_2026/brainaccess_connection/README.md).
+
+## Quick start: Neuro-tamagotchi
+
+```bash
+uv run python -m hotb_2026.tamagotchi init --name Brainy --pet cat
+uv run python -m hotb_2026.tamagotchi daemon          # background loop (Ctrl+C to stop)
+uv run python -m hotb_2026.tamagotchi status
+```
+
+See [`src/hotb_2026/tamagotchi/README.md`](src/hotb_2026/tamagotchi/README.md)
+for the full CLI, care commands, and plugin guide.
 
 ## Git Convention
 
