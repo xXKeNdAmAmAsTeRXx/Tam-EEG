@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hotb_2026.tamagotchi.constants import HOOK_BEGIN, HOOK_END, state_dir
+from hotb_2026.tamagotchi.core.constants import HOOK_BEGIN, HOOK_END, state_dir
 
 _HOOK_BODY = f"""{HOOK_BEGIN}
 # Print the neuro-tamagotchi status before each prompt (if installed).

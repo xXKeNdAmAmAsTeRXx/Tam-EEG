@@ -11,7 +11,7 @@ from hotb_2026.tamagotchi import (
     new_pet,
     resolve_mood,
 )
-from hotb_2026.tamagotchi.pet import Mood, Pet, Stage, Stats
+from hotb_2026.tamagotchi.core.pet import Mood, Pet, Stage, Stats
 
 
 def make_pet(last_update: float = 0.0, stage_started_at: float = 0.0) -> Pet:

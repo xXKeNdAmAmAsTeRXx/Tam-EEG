@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from hotb_2026.tamagotchi.states import UserState
+from hotb_2026.tamagotchi.core.states import UserState
 
 #: Happiness delta applied *per reported state* (not per tick).  This is the
 #: single source of truth for how the classifier output influences the pet.
@@ -41,6 +41,6 @@ PET_FILE_NAME = "pet.json"
 STATUS_FILE_NAME = "status.txt"
 PID_FILE_NAME = "daemon.pid"
 
-#: Markers used by :mod:`hotb_2026.tamagotchi.install` for idempotent hooks.
+#: Markers used by :mod:`hotb_2026.tamagotchi.render.install` for idempotent hooks.
 HOOK_BEGIN = "# >>> hotb tamagotchi >>>"
 HOOK_END = "# <<< hotb tamagotchi <<<"

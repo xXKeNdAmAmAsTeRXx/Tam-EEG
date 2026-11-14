@@ -4,10 +4,10 @@ import json
 
 import pytest
 
-from hotb_2026.tamagotchi.cli import main as cli_main
-from hotb_2026.tamagotchi.constants import state_dir
-from hotb_2026.tamagotchi.display import build_frame, render
-from hotb_2026.tamagotchi.pet import Pet, Stage, Stats
+from hotb_2026.tamagotchi.runtime.cli import main as cli_main
+from hotb_2026.tamagotchi.core.constants import state_dir
+from hotb_2026.tamagotchi.render.display import build_frame, render
+from hotb_2026.tamagotchi.core.pet import Pet, Stage, Stats
 
 
 @pytest.fixture()
@@ -17,7 +17,7 @@ def home(tmp_path, monkeypatch):
 
 
 def test_roundtrip_save_load(home) -> None:
-    from hotb_2026.tamagotchi.engine import new_pet
+    from hotb_2026.tamagotchi.core.engine import new_pet
 
     pet = new_pet("Brainy", "slime")
     pet.stats.happiness = 73.5
@@ -29,7 +29,7 @@ def test_roundtrip_save_load(home) -> None:
 
 
 def test_register_pet_adds_new_creature(home) -> None:
-    from hotb_2026.tamagotchi.art_registry import PETS, get_pet_params, register_pet
+    from hotb_2026.tamagotchi.pets import PETS, get_pet_params, register_pet
 
     name = register_pet(
         "unicorn",
@@ -46,14 +46,14 @@ def test_register_pet_adds_new_creature(home) -> None:
     assert "unicorn" in PETS
     assert get_pet_params("unicorn")["decay_rates"]["hunger"] == 1.0
 
-    from hotb_2026.tamagotchi.engine import new_pet
+    from hotb_2026.tamagotchi.core.engine import new_pet
 
     pet = new_pet("Sparkle", "unicorn")
     assert build_frame(pet)  # renders without errors
 
 
 def test_register_pet_validates_art(home) -> None:
-    from hotb_2026.tamagotchi.art_registry import register_pet
+    from hotb_2026.tamagotchi.pets import register_pet
 
     incomplete_art = {stage: {"HAPPY": "x"} for stage in ("EGG", "BABY", "ADULT")}
     with pytest.raises(ValueError):
@@ -64,7 +64,7 @@ def test_register_pet_validates_art(home) -> None:
 
 
 def test_render_plain_has_no_ansi_leak(home) -> None:
-    from hotb_2026.tamagotchi.engine import new_pet
+    from hotb_2026.tamagotchi.core.engine import new_pet
 
     pet = new_pet("Brainy", "cat")
     plain = build_frame(pet, use_ansi=False)

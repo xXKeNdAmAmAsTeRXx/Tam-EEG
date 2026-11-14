@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import time
 
-from hotb_2026.tamagotchi.art_registry import get_pet_params
-from hotb_2026.tamagotchi.constants import HAPPINESS_EFFECT, STAT_MAX
-from hotb_2026.tamagotchi.pet import Mood, Pet, Stage, Stats
-from hotb_2026.tamagotchi.states import UserState
+from hotb_2026.tamagotchi.pets import get_pet_params
+from hotb_2026.tamagotchi.core.constants import HAPPINESS_EFFECT, STAT_MAX
+from hotb_2026.tamagotchi.core.pet import Mood, Pet, Stage, Stats
+from hotb_2026.tamagotchi.core.states import UserState
 
 
 def apply_state(pet: Pet, state: UserState) -> Pet:

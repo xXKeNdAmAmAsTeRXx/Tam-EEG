@@ -4,14 +4,19 @@ Architecture is modelled on *tamaterm* (background daemon + state file +
 shell hook + CLI), but the *only* influence on happiness is the
 :class:`UserState` reported by the EEG classifier — there are no commit
 counters, git hooks or CPU measurements.
+
+Layout::
+
+    core/    state + logic (states, constants, pet, engine)
+    pets/    animal plugins, one file per creature (art + params)
+    render/  presentation (display, install)
+    runtime/ run processes (daemon, cli)
 """
 
 from __future__ import annotations
 
-from hotb_2026.tamagotchi.art_registry import PETS, list_pets, register_pet
-from hotb_2026.tamagotchi.constants import HAPPINESS_EFFECT
-from hotb_2026.tamagotchi.display import build_frame, render
-from hotb_2026.tamagotchi.engine import (
+from hotb_2026.tamagotchi.core.constants import HAPPINESS_EFFECT
+from hotb_2026.tamagotchi.core.engine import (
     apply_state,
     check_evolution,
     decay,
@@ -19,8 +24,10 @@ from hotb_2026.tamagotchi.engine import (
     resolve_mood,
     tick,
 )
-from hotb_2026.tamagotchi.pet import Mood, Pet, Stage, Stats
-from hotb_2026.tamagotchi.states import UserState
+from hotb_2026.tamagotchi.core.pet import Mood, Pet, Stage, Stats
+from hotb_2026.tamagotchi.core.states import UserState
+from hotb_2026.tamagotchi.pets import PETS, list_pets, register_pet
+from hotb_2026.tamagotchi.render.display import build_frame, render
 
 __all__ = [
     "HAPPINESS_EFFECT",

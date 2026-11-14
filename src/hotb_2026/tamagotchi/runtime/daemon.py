@@ -8,10 +8,10 @@ import sys
 import time
 from pathlib import Path
 
-from hotb_2026.tamagotchi.constants import DEFAULT_TICK_SECONDS, PID_FILE_NAME, state_dir
-from hotb_2026.tamagotchi.display import render
-from hotb_2026.tamagotchi.engine import tick
-from hotb_2026.tamagotchi.pet import Pet
+from hotb_2026.tamagotchi.core.constants import DEFAULT_TICK_SECONDS, PID_FILE_NAME, state_dir
+from hotb_2026.tamagotchi.render.display import render
+from hotb_2026.tamagotchi.core.engine import tick
+from hotb_2026.tamagotchi.core.pet import Pet
 
 _running = True
 

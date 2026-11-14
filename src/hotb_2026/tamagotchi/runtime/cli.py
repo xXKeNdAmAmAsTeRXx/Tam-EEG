@@ -5,18 +5,18 @@ from __future__ import annotations
 import argparse
 import sys
 
-from hotb_2026.tamagotchi import install
-from hotb_2026.tamagotchi.art_registry import list_pets
-from hotb_2026.tamagotchi.constants import state_dir
-from hotb_2026.tamagotchi.daemon import is_running, run
-from hotb_2026.tamagotchi.display import build_frame, render
-from hotb_2026.tamagotchi.engine import apply_state, tick
-from hotb_2026.tamagotchi.pet import clamp
-from hotb_2026.tamagotchi.states import UserState
+from hotb_2026.tamagotchi.render import install
+from hotb_2026.tamagotchi.pets import list_pets
+from hotb_2026.tamagotchi.core.constants import state_dir
+from hotb_2026.tamagotchi.runtime.daemon import is_running, run
+from hotb_2026.tamagotchi.render.display import build_frame, render
+from hotb_2026.tamagotchi.core.engine import apply_state, tick
+from hotb_2026.tamagotchi.core.pet import clamp
+from hotb_2026.tamagotchi.core.states import UserState
 
 
 def _load_pet():
-    from hotb_2026.tamagotchi.pet import Pet
+    from hotb_2026.tamagotchi.core.pet import Pet
 
     pet = Pet.load_or_none()
     if pet is None:
@@ -25,7 +25,7 @@ def _load_pet():
 
 
 def cmd_init(args: argparse.Namespace) -> None:
-    from hotb_2026.tamagotchi.engine import new_pet
+    from hotb_2026.tamagotchi.core.engine import new_pet
 
     directory = state_dir()
     if not args.force and (directory / "pet.json").exists():

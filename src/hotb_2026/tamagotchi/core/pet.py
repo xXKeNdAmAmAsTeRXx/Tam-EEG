@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass, field
 from enum import Enum, unique
 from pathlib import Path
 
-from hotb_2026.tamagotchi.constants import (
+from hotb_2026.tamagotchi.core.constants import (
     CRITICAL_THRESHOLD,
     STAT_MAX,
     STAT_MIN,

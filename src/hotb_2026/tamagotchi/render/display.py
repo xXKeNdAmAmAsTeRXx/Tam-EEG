@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from hotb_2026.tamagotchi.art_registry import get_pet_params
-from hotb_2026.tamagotchi.constants import STATUS_FILE_NAME, state_dir
-from hotb_2026.tamagotchi.engine import resolve_mood
-from hotb_2026.tamagotchi.pet import Pet
+from hotb_2026.tamagotchi.pets import get_pet_params
+from hotb_2026.tamagotchi.core.constants import STATUS_FILE_NAME, state_dir
+from hotb_2026.tamagotchi.core.engine import resolve_mood
+from hotb_2026.tamagotchi.core.pet import Pet
 
 _ANSI = {
     "HAPPY": "\033[32m",  # green
