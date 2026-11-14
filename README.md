@@ -9,6 +9,7 @@ More packages (UI layers, additional connections, etc.) may be added later.
 
     src/hotb_2026/
     ├── brainaccess_connection/   # connection to BrainAccess EEG hardware
+    ├── preprocessing/            # per-window cleaning and standardization
     ├── reve_processor/           # REVE processing of the incoming signal
     └── state_aware_agent/        # state-aware decision-making and agent logic
 
@@ -16,13 +17,18 @@ More packages (UI layers, additional connections, etc.) may be added later.
   BrainAccess EEG device. See
   [`src/hotb_2026/brainaccess_connection/README.md`](src/hotb_2026/brainaccess_connection/README.md)
   for hardware notes, CLI usage, and the LSL stream layout.
-- **`reve_processor`** — processes the incoming signal (REVE) and produces clean,
-  usable data for downstream packages.
+- **`preprocessing`** — cleans each completed streamer window: notch 50 Hz →
+  band-pass 0.5–45 Hz → resample 250 → 200 Hz → z-score → clip ±15. See
+  [`src/hotb_2026/preprocessing/README.md`](src/hotb_2026/preprocessing/README.md)
+  and the demo notebook
+  [`notebooks/preprocessing/01_preprocessing.ipynb`](notebooks/preprocessing/01_preprocessing.ipynb).
+- **`reve_processor`** — processes the cleaned signal (REVE) and produces
+  features for downstream packages.
 - **`state_aware_agent`** — consumes the processed state and drives the
   state-aware agent behavior.
 
-The three packages are not the full set — new packages (e.g. UI, other
-connections) can be added alongside them in `src/hotb_2026/`.
+These packages are not the full set — new packages (e.g. UI, other connections)
+can be added alongside them in `src/hotb_2026/`.
 
 ## Quick start: BrainAccess EEG
 
