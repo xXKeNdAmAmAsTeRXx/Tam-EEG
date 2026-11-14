@@ -432,6 +432,7 @@ dependencies = [
     { name = "brainaccess" },
     { name = "numpy" },
     { name = "pylsl" },
+    { name = "scipy" },
 ]
 
 [package.dev-dependencies]
@@ -445,6 +446,7 @@ requires-dist = [
     { name = "brainaccess", specifier = ">=4.0.0" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "pylsl", specifier = ">=1.18.7" },
+    { name = "scipy", specifier = ">=1.18.1" },
 ]
 
 [package.metadata.requires-dev]
