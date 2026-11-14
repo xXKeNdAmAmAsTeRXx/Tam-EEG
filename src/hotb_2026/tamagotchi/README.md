@@ -9,37 +9,51 @@ file + shell hook + CLI), **minus** everything non-neuro: there are no
 commit counters, git hooks, CPU measurements or `psutil` — the *only*
 input that moves happiness is the reported `UserState`.
 
+All commands below use [uv](https://docs.astral.sh/uv/), the project's
+package manager (`uv sync` first, if you haven't).
+
 ## Quick start
 
-```console
-$ python -m hotb_2026.tamagotchi init --name Brainy --pet cat
-$ python -m hotb_2026.tamagotchi daemon          # background loop (Ctrl+C to stop)
-$ python -m hotb_2026.tamagotchi status
-$ python -m hotb_2026.tamagotchi install-hook    # show the pet before each prompt
+```bash
+uv run python -m hotb_2026.tamagotchi init --name Brainy --pet cat
+uv run python -m hotb_2026.tamagotchi daemon          # background loop (Ctrl+C to stop)
+uv run python -m hotb_2026.tamagotchi status
+uv run python -m hotb_2026.tamagotchi install-hook    # show the pet before each prompt
 ```
 
 State lives in `~/.hotb_tamagotchi/` (`pet.json`, `status.txt`,
 `daemon.pid`); override the directory with `HOTB_TAMAGOTCHI_HOME`.
 
-## Architecture
+## Package layout
 
-| Module         | Responsibility |
-|----------------|----------------|
-| `states.py`    | `UserState` enum (`RELAX`, `FOCUS`, `OVERLOAD`) |
-| `constants.py` | `HAPPINESS_EFFECT` — single source of truth; stat bounds; paths |
-| `pet.py`       | `Pet` + `Stats` (happiness, hunger, energy, hygiene; clamped 0–100), `Stage` (EGG→BABY→ADULT), JSON persistence |
-| `engine.py`    | `apply_state`, `decay` (timestamp-based), `resolve_mood`, `check_evolution` |
-| `art_registry.py` | Pet plugins (ASCII art + parameters) and `register_pet` |
-| `display.py`   | `build_frame` → `status.txt` (plain fallback, optional ANSI colours) |
-| `daemon.py`    | Background tick loop (default 60 s, configurable), pid-file |
-| `install.py`   | Idempotent `# >>> hotb tamagotchi >>>` hook in `.bashrc`/`.zshrc` |
-| `cli.py`       | `python -m hotb_2026.tamagotchi init/feed/play/clean/status/state/daemon/install-hook` |
+```text
+src/hotb_2026/tamagotchi/
+├── __init__.py        # public API re-exports: Pet, UserState, apply_state, register_pet, ...
+├── __main__.py        # `python -m hotb_2026.tamagotchi` entry point
+├── README.md
+├── core/              # state + game logic — zero rendering, zero OS integration
+│   ├── states.py      #   UserState enum (RELAX, FOCUS, OVERLOAD)
+│   ├── constants.py   #   HAPPINESS_EFFECT — single source of truth; stat bounds; paths
+│   ├── pet.py         #   Pet + Stats (clamped 0–100), Stage (EGG→BABY→ADULT), JSON persistence
+│   └── engine.py      #   apply_state, decay (timestamp-based), resolve_mood, check_evolution
+├── pets/              # animal plugins — ONE file per creature (art + params)
+│   ├── __init__.py    #   registry: auto-imports every module, register_pet()
+│   ├── cat.py
+│   ├── dog.py
+│   └── slime.py
+├── render/            # presentation
+│   ├── display.py     #   build_frame → status.txt (plain fallback, optional ANSI colours)
+│   └── install.py     #   idempotent `# >>> hotb tamagotchi >>>` hook in .bashrc/.zshrc
+└── runtime/           # run processes
+    ├── daemon.py      #   background tick loop (default 60 s, configurable), pid-file
+    └── cli.py         #   init/feed/play/clean/status/state/daemon/install-hook
+```
 
-### Rules of the game
+## Rules of the game
 
 * `HAPPINESS_EFFECT = {RELAX: -1, FOCUS: +10, OVERLOAD: -9}` — applied
-  **per reported state**, not per tick. This dict is the only place that
-  defines the mapping.
+  **per reported state**, not per tick. This dict (in
+  `core/constants.py`) is the only place that defines the mapping.
 * `decay(now)` uses wall-clock timestamps, so a daemon outage is not
   "free time": after a pause one call applies the full accumulated drop
   of hunger / energy / hygiene (rates are per-hour, defined per pet).
@@ -48,6 +62,12 @@ State lives in `~/.hotb_tamagotchi/` (`pet.json`, `status.txt`,
   (thresholds are per-pet plugin params).
 * Moods: `CRITICAL` (any vital stat ≤ 10), then `HAPPY` / `NEUTRAL` /
   `SAD` by stat average.
+
+## Tests
+
+```bash
+uv run pytest tests/test_tamagotchi_engine.py tests/test_tamagotchi_cli.py
+```
 
 ## Python API — integrating with the EEG loop
 
@@ -74,12 +94,14 @@ applied in sequence, frames printed).
 
 ## Adding a new pet (plugin system)
 
-A pet is just an entry in `PETS` (or a `register_pet` call) — the engine,
-daemon and CLI need no changes. One entry = ASCII art per **stage × mood**
-plus parameters:
+A pet is just a module in `pets/` that calls `register_pet` (or a
+`register_pet` call from your own code) — the engine, daemon and CLI
+need no changes. One plugin = ASCII art per **stage × mood** plus
+parameters. Drop `pets/unicorn.py` into the package:
 
 ```python
-from hotb_2026.tamagotchi import register_pet
+"""The ``unicorn`` pet plugin."""
+from hotb_2026.tamagotchi.pets import register_pet
 
 register_pet(
     "unicorn",
@@ -96,9 +118,13 @@ register_pet(
         },
     },
 )
+```
 
-# now usable immediately:
-# python -m hotb_2026.tamagotchi init --pet unicorn
+`pets/__init__.py` auto-imports every module next to it, so the new
+creature is usable immediately:
+
+```bash
+uv run python -m hotb_2026.tamagotchi init --pet unicorn
 ```
 
 Built-in plugins: `cat`, `dog`, `slime`.
@@ -107,7 +133,7 @@ Built-in plugins: `cat`, `dog`, `slime`.
 
 `install-hook` appends a marked block to `~/.bashrc` / `~/.zshrc`:
 
-```console
+```bash
 # >>> hotb tamagotchi >>>
 if [ -f "$HOME/.hotb_tamagotchi/status.txt" ]; then
     cat "$HOME/.hotb_tamagotchi/status.txt"
