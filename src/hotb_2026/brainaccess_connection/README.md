@@ -64,7 +64,7 @@ normally need to edit:
 | --- | --- | --- | --- |
 | Headset name | `DEVICE_NAME` | `--device` | `BA MINI 078` |
 | Electrode layout | `MONTAGE.electrodes` | — | `F3, F4, C3, C4, P3, P4, O1, O2` on pins 0–7 |
-| Stream rate | `MONTAGE.sfreq` | `--sfreq` | `200` Hz |
+| Stream rate | `MONTAGE.sfreq` | `--sfreq` | `250` Hz |
 | Bias electrode | `MONTAGE.bias_electrode` | `--bias` | `7` (0-based) |
 
 Precedence is **explicit CLI flag → `config.py` → built-in `DEFAULT_MONTAGE`**,
@@ -72,9 +72,9 @@ so `uv run hotb-brainaccess` uses the configured headset and montage without
 extra flags.
 
 > **Sample rate:** the BrainAccess MINI hardware supports only **250 Hz** or
-> **500 Hz**. The shipped config uses `200` Hz so `--simulate` runs at 200 Hz,
-> which is why hardware runs need `--sfreq 250` (or `500`). The driver rejects
-> other rates before connecting and tells you what to pass.
+> **500 Hz**. The shipped config uses 250 Hz, so it works on hardware as-is.
+> Simulation accepts any positive rate; `--sfreq 500` selects the higher
+> hardware rate.
 
 `DEFAULT_MONTAGE` in `models/montage.py` is the library's 250 Hz baseline.
 `MONTAGE` in `config.py` is this project's configuration: edit it freely, but
@@ -92,15 +92,15 @@ keep `sfreq` at 250 or 500 when you use a real headset.
    BA MINI 001
    ```
 
-2. Stream the configured headset (`DEVICE_NAME` in `config.py`) at a rate the
-   hardware supports:
+2. Stream the configured headset (`DEVICE_NAME` in `config.py`):
 
    ```bash
-   uv run hotb-brainaccess --sfreq 250
+   uv run hotb-brainaccess
    ```
 
-   Pass `--device "BA MINI 001"` to override the configured name. The process
-   prints per-channel RMS once per second and runs until `Ctrl+C`.
+   Pass `--device "BA MINI 001"` to override the configured name, or
+   `--sfreq 500` for the higher hardware rate. The process prints per-channel
+   RMS once per second and runs until `Ctrl+C`.
 
 3. Verify the stream from another terminal:
 
@@ -124,7 +124,7 @@ keep `sfreq` at 250 or 500 when you use a real headset.
 ## Simulated headset
 
 `--simulate` replaces the device with a fake signal (10 Hz alpha plus noise)
-paced in real time at `MONTAGE.sfreq` — 200 Hz by default:
+paced in real time at `MONTAGE.sfreq` — 250 Hz by default:
 
 ```bash
 uv run hotb-brainaccess --simulate
@@ -149,7 +149,7 @@ hotb-brainaccess [--device NAME | --simulate | --scan] [options]
 | `--name NAME` | `BrainAccess EEG` | LSL stream name. |
 | `--source-id ID` | `brainaccess-eeg-1` | LSL `source_id`; use a unique value per headset. |
 | `--window SECONDS` | `4.0` | Maximum rolling-window length passed to processors. Does not affect the LSL stream. |
-| `--sfreq HZ` | `MONTAGE.sfreq` (`200`) | Stream rate. Hardware supports 250 or 500 Hz only; simulation accepts any positive rate. |
+| `--sfreq HZ` | `MONTAGE.sfreq` (`250`) | Stream rate. Hardware supports 250 or 500 Hz only; simulation accepts any positive rate. |
 | `--chunk-size N` | `25` | Samples per BLE chunk, 1–100. Lower = lower latency, more overhead. |
 | `--gain N` | `8` | Amplifier gain: 1, 2, 4, 6, 8 or 12. |
 | `--bias N\|none` | `MONTAGE.bias_electrode` (`7`) | 0-based EEG electrode used for bias feedback. `none` disables feedback. |
@@ -158,8 +158,8 @@ hotb-brainaccess [--device NAME | --simulate | --scan] [options]
 Examples:
 
 ```bash
-# Stream the configured headset at 250 Hz (hardware-supported)
-uv run hotb-brainaccess --sfreq 250
+# Stream the configured headset (250 Hz from config.py)
+uv run hotb-brainaccess
 
 # Use adapter hci1, custom stream identity, 500 Hz, smaller chunks
 uv run hotb-brainaccess --device "BA MINI 001" --adapter 1 --sfreq 500 \
@@ -169,7 +169,7 @@ uv run hotb-brainaccess --device "BA MINI 001" --adapter 1 --sfreq 500 \
 uv run hotb-brainaccess --scan --adapter 1
 
 # Disable bias feedback
-uv run hotb-brainaccess --device "BA MINI 001" --sfreq 250 --bias none
+uv run hotb-brainaccess --device "BA MINI 001" --bias none
 ```
 
 The module form works as well:
@@ -194,7 +194,7 @@ uv run python -m hotb_2026.brainaccess_connection --simulate
 | Type | `EEG` |
 | Channel count | Number of montage electrodes (8 by default) |
 | Channel format | `float32` |
-| Nominal rate | `MONTAGE.sfreq` (200 Hz in the shipped config; 250/500 on hardware) |
+| Nominal rate | `MONTAGE.sfreq` (250 Hz in the shipped config; hardware: 250 or 500) |
 | Unit | µV |
 | `source_id` | `--source-id` |
 
@@ -207,13 +207,11 @@ and is reported as an error instead of silently repeating the last data.
 
 ## Using it as a library
 
-`DEVICE_NAME` and `MONTAGE` are the same values the CLI uses. The driver
-requires a hardware-supported rate, so replace `MONTAGE.sfreq` when using a real
-headset:
+`DEVICE_NAME` and `MONTAGE` are the same values the CLI uses. The shipped
+config is already hardware-valid; if you change `MONTAGE.sfreq`, keep it at 250
+or 500 for a real headset:
 
 ```python
-from dataclasses import replace
-
 from hotb_2026.brainaccess_connection import (
     DEVICE_NAME,
     MONTAGE,
@@ -221,11 +219,10 @@ from hotb_2026.brainaccess_connection import (
     EEGStreamer,
 )
 
-montage = replace(MONTAGE, sfreq=250.0)  # hardware: 250 or 500
-driver = BrainAccessDriver(DEVICE_NAME, montage)
+driver = BrainAccessDriver(DEVICE_NAME, MONTAGE)
 streamer = EEGStreamer(
     driver,
-    montage,
+    MONTAGE,
     stream_name="BrainAccess EEG",
     source_id="brainaccess-eeg-1",
     window_s=4.0,
@@ -287,7 +284,7 @@ printed on the cap. At `open()` the driver checks every pin against
 | `BrainAccess SDK missing` | Run `uv sync` from the repository root. |
 | `pylsl is missing` | Run `uv sync`; `pylsl` is a declared dependency. |
 | `Montage uses electrode N, but the headset has M` | Fix `pin` values; the driver will not start with a wrong mapping. |
-| `BrainAccess MINI supports 250 or 500 Hz, not 200 Hz` | The shipped config is simulation-only. Pass `--sfreq 250` (or `500`), or use `--simulate`. |
+| `BrainAccess MINI supports 250 or 500 Hz, not <rate> Hz` | The driver is hardware-only. Pass `--sfreq 250` (or `500`), or use `--simulate`. |
 | `MINI_V2 does not support 500 Hz sample rate` | Use `--sfreq 250`; check the model's supported rates. |
 | LSL stream never appears | Check the process is still running and the consumer resolves the same `--name`. |
 | RMS lines stop printing | Check `--log-level DEBUG` for a disconnect or queue-overrun warning. |
@@ -300,10 +297,12 @@ src/hotb_2026/brainaccess_connection/
 ├── __init__.py       # public exports
 ├── __main__.py       # python -m hotb_2026.brainaccess_connection
 ├── config.py         # DEVICE_NAME and MONTAGE: the project defaults
+├── driver.py         # Driver protocol + DeviceError (no SDK dependency)
 ├── main.py           # CLI
 ├── drivers/
-│   ├── __init__.py
-│   └── driver.py     # Driver protocol, BrainAccessDriver, SimulatedDriver
+│   ├── __init__.py                 # re-exports the public driver API
+│   ├── brainaccess_driver.py       # BrainAccessDriver, list_devices, HARDWARE_SFREQ
+│   └── simulation_driver.py        # SimulatedDriver
 ├── stream/
 │   ├── __init__.py
 │   └── streamer.py   # EEGStreamer: polling thread, rolling window, LSL outlet

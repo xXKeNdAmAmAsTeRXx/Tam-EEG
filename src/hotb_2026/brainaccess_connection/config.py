@@ -10,8 +10,8 @@ from .models.montage import Electrode, Montage
 
 DEVICE_NAME = "BA MINI 078"
 
-# 200 Hz is a simulation-only default: the MINI hardware streams at 250 or
-# 500 Hz only. Pass ``--sfreq 250`` (or change this value) when using a headset.
+# 250 Hz is supported by the MINI hardware. Pass ``--sfreq 500`` for the
+# higher rate; simulation accepts any positive rate.
 MONTAGE = Montage(
     electrodes=(
         Electrode("F3", pin=0),

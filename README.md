@@ -29,15 +29,15 @@ connections) can be added alongside them in `src/hotb_2026/`.
 ```bash
 uv sync
 uv run hotb-brainaccess --scan          # list nearby headsets (~5 s)
-uv run hotb-brainaccess --sfreq 250     # stream the configured headset
-uv run hotb-brainaccess --simulate      # 200 Hz fake signal, no hardware
+uv run hotb-brainaccess                 # stream the configured headset
+uv run hotb-brainaccess --simulate      # 250 Hz fake signal, no hardware
 ```
 
 The headset, electrode layout, rate and bias come from
 [`config.py`](src/hotb_2026/brainaccess_connection/config.py) (default device:
-`BA MINI 078`). Edit that file to point at a different headset or cap. The MINI
-hardware supports 250 or 500 Hz only; the shipped 200 Hz default is for
-simulation.
+`BA MINI 078`, 250 Hz). Edit that file to point at a different headset or cap,
+or pass `--sfreq 500` for the higher hardware rate. The MINI supports 250 or
+500 Hz only.
 
 The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`, 8 channels
 in µV at the configured rate. Full CLI and troubleshooting docs live in the

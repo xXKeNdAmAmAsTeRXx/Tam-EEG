@@ -7,7 +7,7 @@ from collections.abc import Callable
 
 import numpy as np
 
-from ..drivers.driver import DeviceError, Driver
+from ..driver import DeviceError, Driver
 from ..models.montage import Montage
 
 log = logging.getLogger(__name__)

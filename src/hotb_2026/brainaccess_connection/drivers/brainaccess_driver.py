@@ -1,73 +1,20 @@
-"""Device drivers. The streamer only depends on the Driver protocol."""
+"""BrainAccess BLE driver and SDK helpers."""
 from __future__ import annotations
 
 import collections
 import logging
 import threading
-import time
-from typing import Protocol
 
 import numpy as np
 
+from ..driver import DeviceError
 from ..models.montage import Montage
 
 log = logging.getLogger(__name__)
 
 # Sample rates every BrainAccess model supports. The MINI supports only these.
 HARDWARE_SFREQ = (250, 500)
-
 _GAIN_BY_MULTIPLIER = (1, 2, 4, 6, 8, 12)
-
-
-class DeviceError(RuntimeError):
-    pass
-
-
-class Driver(Protocol):
-    def open(self) -> None: ...
-    def start(self) -> None: ...
-    def read(self) -> np.ndarray:
-        """New samples, shape (n_samples, n_channels), columns in montage order.
-        Returns an empty array if nothing is ready yet."""
-    def stop(self) -> None: ...
-    def close(self) -> None: ...
-
-
-class SimulatedDriver:
-    """Fake headset: 10 Hz alpha on every channel plus noise, paced in real time."""
-
-    def __init__(self, montage: Montage, chunk_ms: float = 40.0, seed: int = 0):
-        self.montage = montage
-        self.sfreq = montage.sfreq
-        self._n_chunk = max(1, round(montage.sfreq * chunk_ms / 1000))
-        self._chunk_s = self._n_chunk / montage.sfreq
-        self._rng = np.random.default_rng(seed)
-        self._amp = np.full(len(montage.electrodes), 20.0, dtype=np.float32)
-        self._sample = 0
-        self._running = False
-
-    def open(self) -> None:
-        pass
-
-    def start(self) -> None:
-        self._sample = 0
-        self._running = True
-
-    def read(self) -> np.ndarray:
-        if not self._running:
-            raise DeviceError("Simulator not started")
-        time.sleep(self._chunk_s)
-        t = (self._sample + np.arange(self._n_chunk)) / self.sfreq
-        self._sample += self._n_chunk
-        alpha = np.sin(2 * np.pi * 10 * t)[:, None] * self._amp[None, :]
-        noise = self._rng.normal(0, 5, size=(self._n_chunk, len(self._amp)))
-        return (alpha + noise).astype(np.float32)
-
-    def stop(self) -> None:
-        self._running = False
-
-    def close(self) -> None:
-        pass
 
 
 def _import_sdk():
