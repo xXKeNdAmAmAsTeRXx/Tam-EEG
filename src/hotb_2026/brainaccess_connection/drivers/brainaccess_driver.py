@@ -12,7 +12,7 @@ from ..models.montage import Montage
 
 log = logging.getLogger(__name__)
 
-# Sample rates every BrainAccess model supports. The MINI supports only these.
+# Sample rates every BrainAccess classification supports. The MINI supports only these.
 HARDWARE_SFREQ = (250, 500)
 _GAIN_BY_MULTIPLIER = (1, 2, 4, 6, 8, 12)
 
