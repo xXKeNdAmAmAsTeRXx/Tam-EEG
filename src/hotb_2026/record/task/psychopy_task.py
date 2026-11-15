@@ -108,6 +108,8 @@ def run_session(
 
     recorder = EEGRecorder(driver, montage)
 
+    device_label = getattr(driver, "device_name", "simulated device")
+
     def show_message(text, key_list=("space",)):
         message.text = text
         message.draw()
@@ -117,8 +119,33 @@ def run_session(
         if keys and "escape" in keys:
             raise KeyboardInterrupt
 
+    def show_status(text):
+        # Non-blocking: display text immediately, e.g. before a blocking call.
+        message.text = text
+        message.draw()
+        win.flip()
+
     try:
-        recorder.start()
+        # Show connection-related text BEFORE opening the device.
+        show_status(
+            "Connecting to EEG device...\n\n"
+            f"Device: {device_label}\n\n"
+            "Please wait."
+        )
+        try:
+            recorder.start()
+        except Exception as exc:  # noqa: BLE001
+            show_message(
+                "Could not connect to the EEG device.\n\n"
+                f"{exc}\n\n"
+                "Press SPACE to exit."
+            )
+            raise
+
+        show_status(
+            "EEG device connected.\n\n"
+            "Preparing the experiment..."
+        )
 
         # Welcome (cut out).
         recorder.set_state(None)

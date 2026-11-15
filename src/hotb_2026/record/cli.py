@@ -81,19 +81,28 @@ def main(argv=None) -> None:
             gain=args.gain,
         )
 
-    run_experiment(
-        subject_id=subject,
-        n_sessions=args.sessions,
-        driver=driver,
-        montage=montage,
-        out_dir=args.out_dir,
-        simulate=False,
-        seed=args.seed,
-        fullscreen=fullscreen,
-        min_duration=args.min_duration,
-        max_duration=args.max_duration,
-        n_blocks=args.n_blocks,
-    )
+    if not args.simulate:
+        print(f"Connecting to {device} ... (device connection occurs when the experiment window opens)")
+
+    from hotb_2026.brainaccess_connection import DeviceError
+
+    try:
+        run_experiment(
+            subject_id=subject,
+            n_sessions=args.sessions,
+            driver=driver,
+            montage=montage,
+            out_dir=args.out_dir,
+            simulate=False,
+            seed=args.seed,
+            fullscreen=fullscreen,
+            min_duration=args.min_duration,
+            max_duration=args.max_duration,
+            n_blocks=args.n_blocks,
+        )
+    except (DeviceError, KeyboardInterrupt) as exc:
+        print(f"Recording stopped: {exc}")
+        raise SystemExit(1) from exc
 
 
 if __name__ == "__main__":
