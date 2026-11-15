@@ -56,6 +56,14 @@ More packages (UI layers, additional connections, etc.) may be added later.
 These packages are not the full set — new packages (e.g. UI, other connections)
 can be added alongside them in `src/hotb_2026/`.
 
+## End-to-end walkthrough
+
+[`notebooks/00_end_to_end_walkthrough.ipynb`](notebooks/00_end_to_end_walkthrough.ipynb)
+follows one synthetic session through every implemented package: stream
+contract, preprocessing, windowing, dataset construction, REVE embeddings,
+Optuna training, reporting, model packaging and loading the bundle for
+inference. It links to the package-specific notebooks for deeper dives.
+
 ## Quick start: BrainAccess EEG
 
 ```bash
