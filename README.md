@@ -1,4 +1,4 @@
-# HOTB_2026
+# HOTB_2026 Project
 
 Heroes of The Brain Neurohackathon 2026!
 
