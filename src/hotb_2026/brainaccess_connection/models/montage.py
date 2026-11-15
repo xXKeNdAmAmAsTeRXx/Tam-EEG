@@ -73,14 +73,14 @@ class Montage:
 # change them if your cap is wired differently.
 DEFAULT_MONTAGE = Montage(
     electrodes=(
-        Electrode("F3", pin=0),
-        Electrode("F4", pin=1),
-        Electrode("C3", pin=2),
-        Electrode("C4", pin=3),
-        Electrode("P3", pin=4),
-        Electrode("P4", pin=5),
-        Electrode("O1", pin=6),
-        Electrode("O2", pin=7),
+        Electrode("Fp2", pin=0),
+        Electrode("P4", pin=1),
+        Electrode("F4", pin=2),
+        Electrode("F3", pin=3),
+        Electrode("FZ", pin=4),
+        Electrode("P3", pin=5),
+        Electrode("Fp1", pin=6),
+        Electrode("Poz", pin=7),
     ),
     sfreq=250.0,
     bias_electrode=7,

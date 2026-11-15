@@ -1,29 +1,60 @@
+"""scikit-learn wrapper: frozen REVE encoder + SVM classifier."""
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any
 
 import numpy as np
-import torch
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.svm import SVC
-from transformers import AutoModel
+
+from hotb_2026.features.reve import (
+    DEFAULT_MODEL_NAME,
+    DEFAULT_POS_MODEL_NAME,
+    ReveEncoder,
+    electrode_names,
+    validate_batch,
+)
 
 
 class ReveSVMClassifier(BaseEstimator, ClassifierMixin):
     """scikit-learn classifier built on top of a frozen REVE transformer.
 
-    The transformer weights are pretrained and frozen.  A standard ``SVC`` is
+    The transformer weights are pretrained and frozen. A standard ``SVC`` is
     trained on the embeddings produced by REVE for each input window.
+
+    This class is the convenience wrapper for interactive use. Offline
+    training (``hotb_2026.classification.training``) works on cached
+    embeddings with a plain scikit-learn pipeline instead, so it does not pay
+    the model-loading cost on every estimator clone.
+
+    Parameters
+    ----------
+    electrodes:
+        Montage or ordered electrode names. Must match the channel order of
+        every array passed to ``fit``/``predict``.
+    pos_embedding_model_name, signal_embedding_model_name:
+        Hugging Face ids of the position bank and signal transformer.
+    C, kernel, gamma:
+        Forwarded to :class:`sklearn.svm.SVC`.
+    batch_size:
+        Windows encoded per forward pass.
+    device:
+        ``None``/``"auto"``, ``"cpu"``, ``"mps"`` or ``"cuda"``.
+    random_state:
+        Forwarded to ``SVC`` (affects Platt probability calibration).
     """
 
     def __init__(
         self,
         electrodes: Any,
-        pos_embedding_model_name: str = "brain-bzh/reve-positions",
-        signal_embedding_model_name: str = "brain-bzh/reve-base",
+        pos_embedding_model_name: str = DEFAULT_POS_MODEL_NAME,
+        signal_embedding_model_name: str = DEFAULT_MODEL_NAME,
         C: float = 1.0,
         kernel: str = "rbf",
         gamma: Any = "scale",
+        batch_size: int = 16,
+        device: str | None = None,
+        random_state: int | None = None,
     ):
         self.electrodes = electrodes
         self.pos_embedding_model_name = pos_embedding_model_name
@@ -31,118 +62,49 @@ class ReveSVMClassifier(BaseEstimator, ClassifierMixin):
         self.C = C
         self.kernel = kernel
         self.gamma = gamma
+        self.batch_size = batch_size
+        self.device = device
+        self.random_state = random_state
 
-        # Encode electrodes: this does not change during training or inference.
-        if hasattr(electrodes, "eeg_names"):
-            electrode_names = list(electrodes.eeg_names)
-        elif hasattr(electrodes, "names"):
-            electrode_names = list(electrodes.names)
-        else:
-            electrode_names = list(electrodes)
+        self._electrodes = tuple(electrode_names(electrodes))
+        self._encoder: ReveEncoder | None = None
 
-        if not electrode_names:
-            raise ValueError("electrodes must not be empty")
-        if any(not isinstance(name, str) or not name for name in electrode_names):
-            raise ValueError("electrode names must be non-empty strings")
-        if len(set(electrode_names)) != len(electrode_names):
-            raise ValueError("electrode names must be unique")
+    # ------------------------------------------------------------------ #
+    # encoder
+    # ------------------------------------------------------------------ #
+    @property
+    def encoder(self) -> ReveEncoder:
+        if self._encoder is None:
+            self._encoder = ReveEncoder(
+                self._electrodes,
+                model_name=self.signal_embedding_model_name,
+                pos_model_name=self.pos_embedding_model_name,
+                device=self.device,
+                batch_size=self.batch_size,
+            )
+        return self._encoder
 
-        self._electrodes = electrode_names
+    @property
+    def signal_embedding_model(self) -> Any:
+        return self.encoder.signal_embedding_model
 
-        # Position embeddings (frozen lookup table).
-        pos_embedding_model = AutoModel.from_pretrained(
-            pos_embedding_model_name, trust_remote_code=True
-        )
-        pos_embedding_model.eval()
-        self.electrodes_pos = pos_embedding_model(electrode_names)
-        if not isinstance(self.electrodes_pos, torch.Tensor):
-            self.electrodes_pos = torch.as_tensor(self.electrodes_pos)
-        self.electrodes_pos = self.electrodes_pos.detach().cpu().float()
+    @property
+    def pos_embedding_model(self) -> Any:
+        return self.encoder.pos_embedding_model
 
-        missing = [
-            name for name in electrode_names if name not in pos_embedding_model.mapping
-        ]
-        if missing:
-            raise ValueError(f"Unknown electrode names for position model: {missing}")
-
-        # Signal embedding model (frozen transformer).
-        self.signal_embedding_model = AutoModel.from_pretrained(
-            signal_embedding_model_name, trust_remote_code=True
-        )
-        self.signal_embedding_model.eval()
-        for param in self.signal_embedding_model.parameters():
-            param.requires_grad_(False)
-
-        if not hasattr(self.signal_embedding_model, "embed_dim"):
-            raise RuntimeError("Signal embedding model has no embed_dim attribute")
-        self.embedding_dim_ = int(self.signal_embedding_model.embed_dim)
+    @property
+    def electrodes_pos(self) -> Any:
+        return self.encoder.electrodes_pos
 
     # ------------------------------------------------------------------ #
     # input handling
     # ------------------------------------------------------------------ #
     def _validate_X(self, X: Any) -> np.ndarray:
-        if isinstance(X, torch.Tensor):
-            X = X.detach().cpu().numpy()
-        X = np.asarray(X)
-
-        if X.ndim != 3:
-            raise ValueError(
-                f"X must be 3-D (n_samples, n_channels, n_timesteps), got shape {X.shape}"
-            )
-
-        n_channels = len(self._electrodes)
-
-        if X.shape[1] == n_channels:
-            pass
-        elif X.shape[2] == n_channels:
-            X = np.transpose(X, (0, 2, 1))
-        else:
-            raise ValueError(
-                f"X has {X.shape[1]} channels on axis 1 and {X.shape[2]} on axis 2, "
-                f"but {n_channels} electrodes were provided"
-            )
-
-        if not np.issubdtype(X.dtype, np.number) or np.iscomplexobj(X):
-            raise ValueError(f"X must contain real numeric values, got dtype {X.dtype}")
-        if not np.all(np.isfinite(X)):
-            raise ValueError("X contains non-finite values (NaN or Inf)")
-
-        min_samples = int(getattr(self.signal_embedding_model, "patch_size", 200))
-        if X.shape[2] < min_samples:
-            raise ValueError(
-                f"Each window must contain at least {min_samples} samples, got {X.shape[2]}"
-            )
-
-        return np.ascontiguousarray(X, dtype=np.float64)
+        encoder = self.encoder
+        return validate_batch(X, len(self._electrodes), encoder.patch_size)
 
     def _encode(self, X: np.ndarray) -> np.ndarray:
-        n_samples = X.shape[0]
-        embeddings = np.empty((n_samples, self.embedding_dim_), dtype=np.float64)
-
-        batch_size = 16
-        pos_embeddings = self.electrodes_pos
-
-        model = self.signal_embedding_model
-        params = list(model.parameters())
-        device = params[0].device if params else torch.device("cpu")
-        pos_embeddings = pos_embeddings.to(device)
-
-        for start in range(0, n_samples, batch_size):
-            stop = min(start + batch_size, n_samples)
-            batch = X[start:stop]
-            tensor = torch.from_numpy(
-                np.ascontiguousarray(batch, dtype=np.float32)
-            ).to(device)
-
-            pos_batch = pos_embeddings.unsqueeze(0).expand(tensor.shape[0], -1, -1)
-
-            with torch.no_grad():
-                output = model(tensor, pos_batch)
-                pooled = model.attention_pooling(output)
-
-            embeddings[start:stop] = pooled.detach().cpu().numpy().astype(np.float64)
-
-        return embeddings
+        return self.encoder.encode(X)
 
     # ------------------------------------------------------------------ #
     # sklearn API
@@ -159,7 +121,8 @@ class ReveSVMClassifier(BaseEstimator, ClassifierMixin):
             raise ValueError(f"y must be 1-D, got shape {y.shape}")
         if y.shape[0] != X.shape[0]:
             raise ValueError(
-                f"X and y have inconsistent numbers of samples: {X.shape[0]} vs {y.shape[0]}"
+                f"X and y have inconsistent numbers of samples: "
+                f"{X.shape[0]} vs {y.shape[0]}"
             )
 
         embeddings = self._encode(X)
@@ -169,29 +132,30 @@ class ReveSVMClassifier(BaseEstimator, ClassifierMixin):
             kernel=self.kernel,
             gamma=self.gamma,
             probability=True,
-            random_state=None,
+            random_state=self.random_state,
         )
         self._svc.fit(embeddings, y)
 
         self.classes_ = self._svc.classes_
         self.n_classes_ = len(self.classes_)
+        self.embedding_dim_ = embeddings.shape[1]
         self.n_features_in_ = embeddings.shape[1]
         return self
 
     def predict(self, X: Any) -> np.ndarray:
         self._check_fitted()
         X = self._validate_X(X)
-        embeddings = self._encode(X)
-        return self._svc.predict(embeddings)
+        return self._svc.predict(self._encode(X))
 
     def predict_proba(self, X: Any) -> np.ndarray:
         self._check_fitted()
         X = self._validate_X(X)
-        embeddings = self._encode(X)
-        return self._svc.predict_proba(embeddings)
+        return self._svc.predict_proba(self._encode(X))
 
     def decision_function(self, X: Any) -> np.ndarray:
         self._check_fitted()
         X = self._validate_X(X)
-        embeddings = self._encode(X)
-        return self._svc.decision_function(embeddings)
+        return self._svc.decision_function(self._encode(X))
+
+
+__all__ = ["ReveSVMClassifier"]
