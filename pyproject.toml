@@ -11,6 +11,9 @@ dependencies = [
     "brainaccess>=4.0.0",
     "einops>=0.8.2",
     "numpy>=2.5.4",
+    "psychopy-lib>=2026.2.5",
+    "requests>=2.31.0",
+    "legacy-cgi>=2.6.0; python_version >= '3.13'",
     "pylsl>=1.18.7",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
@@ -21,6 +24,7 @@ dependencies = [
 [project.scripts]
 hotb-2026 = "hotb_2026:main"
 hotb-brainaccess = "hotb_2026.brainaccess_connection.main:main"
+hotb-record = "hotb_2026.record.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
