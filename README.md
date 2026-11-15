@@ -10,7 +10,11 @@ More packages (UI layers, additional connections, etc.) may be added later.
     src/hotb_2026/
     ├── brainaccess_connection/   # connection to BrainAccess EEG hardware
     ├── preprocessing/            # per-window cleaning and standardization
-    ├── classification/           # REVE embeddings + SVM classifier
+    ├── features/                 # frozen REVE encoder + embedding cache
+    ├── classification/           # training: dataset, Optuna search, SVM
+    ├── reporting/                # metrics, figures, run reports
+    ├── model_store/              # planned: save/deploy the trained model
+    ├── inference/                # planned: load model + live prediction
     ├── mappers/                  # adapters between package models
     └── state_aware_agent/        # planned: state-aware decision-making
 
@@ -23,12 +27,22 @@ More packages (UI layers, additional connections, etc.) may be added later.
   [`src/hotb_2026/preprocessing/README.md`](src/hotb_2026/preprocessing/README.md)
   and the demo notebook
   [`notebooks/preprocessing/01_preprocessing.ipynb`](notebooks/preprocessing/01_preprocessing.ipynb).
-- **`classification`** — embeds each preprocessed window with a frozen REVE
-  transformer (`brain-bzh/reve-base`) and classifies the pooled embedding with a
-  scikit-learn SVM. See
-  [`src/hotb_2026/classification/model/ReveSVMClassifier.py`](src/hotb_2026/classification/model/ReveSVMClassifier.py)
-  and the REVE notebook
-  [`notebooks/reve_model/01_reve_embddings.ipynb`](notebooks/reve_model/01_reve_embddings.ipynb).
+- **`features`** — the frozen REVE-Base encoder (`brain-bzh/reve-base` plus
+  `brain-bzh/reve-positions`) and a content-addressed embedding cache. Shared by
+  training and, later, live inference.
+- **`classification`** — training only: builds labeled windows from recordings,
+  tunes an RBF SVM over frozen REVE embeddings with Optuna and grouped
+  cross-validation, and evaluates on held-out groups. See
+  [`src/hotb_2026/classification/README.md`](src/hotb_2026/classification/README.md)
+  and the notebook
+  [`notebooks/classification/01_training.ipynb`](notebooks/classification/01_training.ipynb).
+- **`reporting`** — metric bundles, Matplotlib figures, `metrics.json` and the
+  Markdown `report.md` for a training run.
+- **`model_store`** — planned, not implemented yet. Will persist the trained
+  pipeline in a deployable format and publish it to Hugging Face.
+- **`inference`** — planned, not implemented yet. Will load the saved model,
+  run live inference, and expose a `Prediction` dataclass (label, confidence,
+  probabilities, state-change time, current time, model version).
 - **`mappers`** — small adapters between package models, e.g.
   `montage_to_list_electrode` turns a `Montage` into the electrode-name list
   REVE's position encoding expects.
@@ -56,6 +70,22 @@ or pass `--sfreq 500` for the higher hardware rate. The MINI supports 250 or
 The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`, 8 channels
 in µV at the configured rate. Full CLI and troubleshooting docs live in the
 [package README](src/hotb_2026/brainaccess_connection/README.md).
+
+## Quick start: classification training
+
+```bash
+# Synthetic recordings: exercises windowing, REVE embeddings, Optuna and reports.
+uv run python -m hotb_2026.classification.training --synthetic --trials 20
+
+# Recorded sessions in the on-disk format (see the classification README).
+uv run python -m hotb_2026.classification.training \
+    --recordings data/sessions --out runs/nback --trials 60
+```
+
+Each run writes `config.json`, metrics, Optuna trials, predictions, figures and
+a Markdown `report.md` to `runs/classification-<timestamp>`. See the
+[classification README](src/hotb_2026/classification/README.md) for the data
+format, labeling rules, grouped validation and options.
 
 ## Git Convention
 
