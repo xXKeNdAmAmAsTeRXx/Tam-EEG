@@ -26,6 +26,6 @@ register_pet(
     },
     params={
         "decay_rates": {'hunger': 10.0, 'energy': 4.0, 'hygiene': 7.0},
-        "evolution_thresholds": {'BABY': {'seconds': 60.0, 'avg': 20.0}, 'ADULT': {'seconds': 5000.0, 'avg': 100.0}},
+        "evolution_thresholds": {'BABY': {'seconds': 60.0, 'avg': 20.0}, 'ADULT': {'seconds': 5000.0, 'avg': 90.0}},
     },
 )
