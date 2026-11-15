@@ -152,8 +152,22 @@ apply_state(pet, prediction.user_state)   # RELAX −1 · FOCUS +10 · OVERLOAD 
 ```
 
 State lives in `~/.hotb_tamagotchi/` (`pet.json`, `status.txt`,
-`daemon.pid`); override with `HOTB_TAMAGOTCHI_HOME`. New pets are
-drop-in plugins — one file per pet under
+`daemon.pid`); override with `HOTB_TAMAGOTCHI_HOME`.
+
+Meet the team pet — **the monkey** (`--pet monkey`), drawn from the
+[`pets/monkey.py`](src/hotb_2026/tamagotchi/pets/monkey.py) plugin:
+
+```text
+   EGG          BABY                     ADULT
+  ( ovo )      @( ^o^ )@          @( ^o^ )@  _
+   -----         _~_                /(   )\__/
+              focused work       a happy grown monkey
+```
+
+Care for it and it hatches from the egg and grows through stages;
+overload it and happiness drops 9 points per report until it wilts.
+
+New pets are drop-in plugins — one file per pet under
 [`src/hotb_2026/tamagotchi/pets/`](src/hotb_2026/tamagotchi/pets/):
 ASCII art per stage and mood plus the decay and evolution parameters.
 See the [tamagotchi README](src/hotb_2026/tamagotchi/README.md).
