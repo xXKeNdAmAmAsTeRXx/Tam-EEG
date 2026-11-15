@@ -7,14 +7,26 @@ import dataclasses
 from pathlib import Path
 
 from .api import run_experiment
+from .io.paths import ensure_sessions_available, subject_dir
 
 
 def build_parser() -> argparse.ArgumentParser:
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Run recorded n-back EEG sessions")
+    parser = argparse.ArgumentParser(
+        description="Run recorded n-back EEG sessions",
+        allow_abbrev=False,
+    )
     parser.add_argument("--subject", default="", help="Subject/participant id")
-    parser.add_argument("--sessions", type=int, default=1, help="Number of sessions")
+    parser.add_argument(
+        "--session",
+        "--session-idx",
+        dest="session_idx",
+        type=int,
+        default=None,
+        help="Session index to record (default: 1, or the value from the dialog)",
+    )
+    parser.add_argument(
+        "--sessions", type=int, default=1, help="Number of sessions to record"
+    )
     parser.add_argument("--out-dir", default="data", help="Output root directory")
     parser.add_argument("--simulate", action="store_true", help="Use simulated EEG driver")
     parser.add_argument("--device", default=None, help="Headset name (real device)")
@@ -36,9 +48,10 @@ def main(argv=None) -> None:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    from hotb_2026.brainaccess_connection import DEVICE_NAME, MONTAGE
-    from hotb_2026.brainaccess_connection.config import DEVICE_NAME as CFG_DEVICE
+    if args.sessions < 1:
+        raise SystemExit("--sessions must be >= 1")
 
+    session_idx = args.session_idx
     subject = args.subject
     if not subject:
         try:
@@ -49,15 +62,38 @@ def main(argv=None) -> None:
             if not dlg.OK:
                 raise SystemExit(0)
             subject = info["participant"] or "subject"
+            if session_idx is None:
+                try:
+                    session_idx = int(info.get("session", "1"))
+                except (TypeError, ValueError):
+                    session_idx = 1
         except Exception:  # noqa: BLE001
             raise SystemExit("--subject is required")
+
+    if session_idx is None:
+        session_idx = 1
+    if session_idx < 1:
+        raise SystemExit("--session must be >= 1")
+
+    out_root = Path(args.out_dir)
+    subject_root = subject_dir(out_root, subject)
+    try:
+        ensure_sessions_available(subject_root, session_idx, args.sessions)
+    except FileExistsError as exc:
+        raise SystemExit(str(exc)) from exc
+
+    last_session_idx = session_idx + args.sessions - 1
+    print(
+        f"Recording session(s) {session_idx}..{last_session_idx} "
+        f"for subject '{subject}' into {subject_root}"
+    )
+
+    from hotb_2026.brainaccess_connection import DEVICE_NAME, MONTAGE
 
     device = args.device or DEVICE_NAME
     fullscreen = args.fullscreen and not args.windowed
 
     # Build montage.
-    import dataclasses
-
     montage = MONTAGE
     if args.sfreq is not None:
         montage = dataclasses.replace(montage, sfreq=float(args.sfreq))
@@ -90,10 +126,11 @@ def main(argv=None) -> None:
         run_experiment(
             subject_id=subject,
             n_sessions=args.sessions,
+            start_session_idx=session_idx,
             driver=driver,
             montage=montage,
             out_dir=args.out_dir,
-            simulate=False,
+            simulate=args.simulate,
             seed=args.seed,
             fullscreen=fullscreen,
             min_duration=args.min_duration,

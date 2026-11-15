@@ -18,11 +18,21 @@ def write_session(
     signal: np.ndarray,
     time: np.ndarray,
     state_changes: list[tuple[float, str]],
+    *,
+    overwrite: bool = False,
 ) -> Path:
-    """Write one session folder and return its path."""
+    """Write one session folder and return its path.
+
+    Refuses to overwrite an existing session folder unless ``overwrite=True``.
+    """
     root = Path(out_dir)
     session_dir = root / f"session_{session_idx}"
-    session_dir.mkdir(parents=True, exist_ok=True)
+    if session_dir.exists() and not overwrite:
+        raise FileExistsError(
+            f"Session folder already exists: {session_dir}. "
+            "Choose another session index or pass overwrite=True."
+        )
+    session_dir.mkdir(parents=True, exist_ok=overwrite)
 
     signal = np.asarray(signal)
     time = np.asarray(time)
