@@ -139,9 +139,10 @@ metadata schema, versioning and the owner→user publishing fallback.
 uv run hotb-record --simulate --subject demo --sessions 1
 ```
 
-Each session is written to `data/session_<n>/` with `meta.json`, `signal.npy`,
-`time.npy`, and `state_changes.csv`. Instruction/feedback periods are cut out of
-the recorded signal. See
+Each session is written to `data/<subject_id>/session_<n>/` with `meta.json`,
+`signal.npy`, `time.npy`, and `state_changes.csv`. Pass `--session <n>` to pick
+the session index; an existing session folder aborts the run instead of being
+overwritten. Instruction/feedback periods are cut out of the recorded signal. See
 [`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md).
 
 ## Git Convention

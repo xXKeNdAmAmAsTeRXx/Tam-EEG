@@ -76,6 +76,10 @@ def run_session(
     from psychopy import core, event, visual
 
     from ..io import write_session
+    from ..io.paths import ensure_session_available, subject_dir
+
+    session_root = subject_dir(out_dir, subject_id)
+    ensure_session_available(session_root, session_idx)
 
     if rng is None:
         rng = random.Random()
@@ -296,7 +300,7 @@ def run_session(
     }
 
     session_dir = write_session(
-        out_dir=out_dir,
+        out_dir=session_root,
         session_idx=session_idx,
         meta=meta,
         signal=signal,

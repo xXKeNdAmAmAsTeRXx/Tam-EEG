@@ -6,6 +6,11 @@ import random
 from pathlib import Path
 from typing import Any
 
+from .io.paths import (
+    ensure_session_available,
+    ensure_sessions_available,
+    subject_dir,
+)
 from .task.psychopy_task import run_session as _run_session_impl
 
 
@@ -36,6 +41,9 @@ def run_session_helper(
     seed: int | None = None,
     **kwargs: Any,
 ) -> Path:
+    if session_idx < 1:
+        raise ValueError("session_idx must be >= 1")
+    ensure_session_available(subject_dir(out_dir, subject_id), session_idx)
     driver, montage = _resolve_driver_and_montage(driver, montage, simulate)
     rng = random.Random(seed) if seed is not None else None
     return _run_session_impl(
@@ -53,6 +61,7 @@ def run_experiment(
     subject_id: str,
     n_sessions: int = 1,
     *,
+    start_session_idx: int = 1,
     driver=None,
     montage=None,
     out_dir: str | Path = "data",
@@ -60,9 +69,16 @@ def run_experiment(
     seed: int | None = None,
     **kwargs: Any,
 ) -> list[Path]:
+    if n_sessions < 1:
+        raise ValueError("n_sessions must be >= 1")
+    if start_session_idx < 1:
+        raise ValueError("start_session_idx must be >= 1")
+    ensure_sessions_available(
+        subject_dir(out_dir, subject_id), start_session_idx, n_sessions
+    )
     driver, montage = _resolve_driver_and_montage(driver, montage, simulate)
     results: list[Path] = []
-    for i in range(1, n_sessions + 1):
+    for i in range(start_session_idx, start_session_idx + n_sessions):
         child_seed = None if seed is None else seed + i
         child_rng = random.Random(child_seed) if child_seed is not None else None
         results.append(
