@@ -1,0 +1,19 @@
+{
+  "session_id": "demo_1",
+  "subject_id": "demo",
+  "electrodes": [
+    "F3",
+    "F4",
+    "C3",
+    "C4",
+    "P3",
+    "P4",
+    "O1",
+    "O2"
+  ],
+  "sfreq": 250.0,
+  "n_channels": 8,
+  "session_idx": 1,
+  "n_samples": 3990,
+  "created_at": "2026-11-15T00:52:28.285667+00:00"
+}

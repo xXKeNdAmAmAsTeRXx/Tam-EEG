@@ -16,6 +16,7 @@ More packages (UI layers, additional connections, etc.) may be added later.
     ├── model_store/              # save/deploy the trained model
     ├── inference/                # planned: load model + live prediction
     ├── mappers/                  # adapters between package models
+    ├── record/                   # PsychoPy n-back recording sessions
     └── state_aware_agent/        # planned: state-aware decision-making
 
 - **`brainaccess_connection`** — handles connecting to and streaming data from the
@@ -50,6 +51,9 @@ More packages (UI layers, additional connections, etc.) may be added later.
 - **`mappers`** — small adapters between package models, e.g.
   `montage_to_list_electrode` turns a `Montage` into the electrode-name list
   REVE's position encoding expects.
+- **`record`** — runs the PsychoPy n-back procedure (rest / 1-back / 3-back)
+  and records EEG sessions. See
+  [`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md).
 - **`state_aware_agent`** — planned, not implemented yet. Will consume the
   classified state and drive the agent behavior.
 
@@ -128,6 +132,17 @@ The bundle contains `model.joblib`, a self-describing `metadata.json` and a
 Hugging Face `model_card.md`. REVE weights are referenced by id, not uploaded.
 See the [model_store README](src/hotb_2026/model_store/README.md) for the
 metadata schema, versioning and the owner→user publishing fallback.
+
+## Quick start: recorded n-back sessions
+
+```bash
+uv run hotb-record --simulate --subject demo --sessions 1
+```
+
+Each session is written to `data/session_<n>/` with `meta.json`, `signal.npy`,
+`time.npy`, and `state_changes.csv`. Instruction/feedback periods are cut out of
+the recorded signal. See
+[`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md).
 
 ## Git Convention
 
