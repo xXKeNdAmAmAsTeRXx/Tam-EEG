@@ -3,7 +3,7 @@ from __future__ import annotations
 import random
 
 from hotb_2026.record import make_procedure
-from hotb_2026.record.settings import MIN_BLOCK_DURATION, MAX_BLOCK_DURATION
+from hotb_2026.record.core.settings import MIN_BLOCK_DURATION, MAX_BLOCK_DURATION
 
 
 def test_procedure_length_and_bounds():

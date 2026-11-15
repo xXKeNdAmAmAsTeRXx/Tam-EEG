@@ -8,8 +8,6 @@ from typing import Callable
 
 import numpy as np
 
-from .settings import Block  # noqa: F401 (re-export convenience)
-
 
 class EEGRecorder:
     """Continuously reads a driver and keeps samples for active states.
