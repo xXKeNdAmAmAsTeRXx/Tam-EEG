@@ -1,11 +1,13 @@
 # Tam-EEG
 
-**An online EEG analysis framework and a tamagotchi that knows your cognitive load.**
+**A framework for online EEG analysis and a cognitive-load-aware tamagotchi.**
 
-Tam-EEG streams 8-channel EEG from a BrainAccess headset, classifies your
-cognitive state (RELAX / FOCUS / OVERLOAD) in real time, and feeds it to a
-virtual pet that lives in your terminal prompt. The classifier does the
-science; the pet does the motivation.
+Heroes of The Brain Neurohackathon 2026 project — **work in progress**.
+
+Tam-EEG streams 8-channel EEG from a BrainAccess headset, classifies the
+user's cognitive state (RELAX / FOCUS / OVERLOAD) in real time, and feeds
+it to a virtual pet that lives in the terminal prompt: focused work makes
+the pet thrive, overload makes it wilt.
 
 ```
 BrainAccess EEG  →  preprocessing  →  REVE embeddings  →  SVM classifier
@@ -15,11 +17,6 @@ BrainAccess EEG  →  preprocessing  →  REVE embeddings  →  SVM classifier
                           terminal pet: happiness, mood, life stage
                           (FOCUS +10 · RELAX −1 · OVERLOAD −9 per report)
 ```
-
-Focus and your pet thrives. Overload it and your pet wilts. Neglect the
-framework (or yourself) and the stats decay in real time.
-
-Built for the Heroes of The Brain Neurohackathon 2026.
 
 ## What's in the box
 
