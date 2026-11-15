@@ -37,6 +37,59 @@ def _require_finite(name: str, value: float) -> None:
         raise ValueError(f"{name} must be finite, got {value}")
 
 
+def normalize_state_label(value: Any) -> int:
+    """Map a state-change label to a cognitive-overload class id.
+
+    The internal class ids are overload tiers ``0..2`` (see
+    :data:`hotb_2026.classification.dataset.DEFAULT_LABEL_NAMES` for the
+    human-readable names low/medium/high).
+
+    Recordings written by the N-back procedure label states with task names
+    such as ``"rest"``, ``"1back"``, ``"2back"`` or ``"3back"`` instead of
+    overload ids. This normalizer accepts both:
+
+    * an integer overload id (the historical format), or
+    * a task state name — ``rest`` maps to the lowest tier, and an
+      ``<n>back`` state maps to ``min(2, n)``, i.e. task intensity is folded
+      onto the three overload tiers and never exceeds the highest one.
+
+    Examples
+    --------
+    >>> normalize_state_label(1)
+    1
+    >>> normalize_state_label("rest")
+    0
+    >>> normalize_state_label("3back")
+    2
+    """
+    if isinstance(value, bool):
+        raise ValueError(f"state label must be an integer, got {value!r}")
+    if isinstance(value, (int, np.integer)):
+        return int(value)
+    if isinstance(value, str):
+        name = value.strip().lower()
+        if name.isdigit():
+            return int(name)
+        if name == "rest":
+            return 0
+        suffix = "back"
+        if name.endswith(suffix):
+            digits = name[: -len(suffix)]
+            if digits.isdigit():
+                level = int(digits)
+                if level < 1:
+                    raise ValueError(
+                        f"task level must be positive, got {name!r}"
+                    )
+                return min(2, level)
+        raise ValueError(
+            "unsupported state label "
+            f"{value!r}; expected an integer overload id or a task state "
+            f"such as 'rest', '1back', '2back' or '3back'"
+        )
+    raise ValueError(f"state label must be an integer, got {value!r}")
+
+
 def _normalize_signal(
     signal: np.ndarray, n_channels: int, layout: str
 ) -> np.ndarray:
@@ -179,7 +232,7 @@ class Recording:
                 changes.append(
                     StateChange(
                         time_s=float(row["time"]),
-                        label=int(row["label"]),
+                        label=normalize_state_label(row["label"]),
                     )
                 )
         changes.sort(key=lambda change: change.time_s)

@@ -7,7 +7,13 @@ from .builder import (
     label_at,
     load_recordings,
 )
-from .schema import FORMAT_VERSION, EegDataset, Recording, StateChange
+from .schema import (
+    FORMAT_VERSION,
+    EegDataset,
+    Recording,
+    StateChange,
+    normalize_state_label,
+)
 from .synthetic import make_synthetic_recording, write_synthetic_session
 
 __all__ = [
@@ -22,5 +28,6 @@ __all__ = [
     "label_at",
     "load_recordings",
     "make_synthetic_recording",
+    "normalize_state_label",
     "write_synthetic_session",
 ]

@@ -66,6 +66,66 @@ Useful options: `--folds`, `--test-size`, `--metric`, `--group-by`, `--window`,
 `--stride`, `--device`, `--no-cache`, `--save-dataset`, `--no-plots`.
 The default run directory is `runs/classification-<timestamp>`.
 
+### Recorded sessions
+
+`state_changes.csv` holds `time,label` rows, one per state change, sorted by
+time. The label is the state that becomes active at `time`.
+
+Two label formats are accepted:
+
+* integer overload ids — `0` (low), `1` (medium), `2` (high);
+* task state names written by the N-back procedure — `rest`, `1back`, `2back`,
+  `3back`. Task names are folded onto the overload tiers: `rest` maps to the
+  lowest tier and `<n>back` maps to `min(2, n)`, so `1back` → medium,
+  `2back`/`3back` → high and `rest` → low.
+
+Before the first state change the stream is unlabeled and its windows are
+dropped by the default windowing.
+
+Windows that would reach past the end of a recording are dropped too, so every
+window in a dataset has the fixed length planned from `window_s`.
+
+### From run artifacts to a bundle
+
+Training writes the run directory (metrics, trials, figures, report). To turn a
+fitted result into a deployable bundle:
+
+```python
+from hotb_2026.classification.dataset import build_dataset, load_recordings
+from hotb_2026.classification.training import TrainingConfig, train
+from hotb_2026.model_store import StoreConfig, save_model
+
+dataset = build_dataset(load_recordings("data/sessions"), window_s=10.0)
+result = train(
+    dataset,
+    config=TrainingConfig(n_splits=5, n_trials=60, seed=0),
+    cache_dir="runs/nback/embeddings",
+)
+bundle = save_model(result, "bundles/nback", config=StoreConfig(version="0.1.0"))
+```
+
+### Live inference on the recorded bundle
+
+```bash
+uv run python -m hotb_2026.inference --bundle bundles/nback --windows 3
+```
+
+The same bundle can be loaded from Python and scored on a recorded window:
+
+```python
+import numpy as np
+
+from hotb_2026.classification.dataset import build_dataset, load_recordings
+from hotb_2026.inference import Predictor
+
+dataset = build_dataset(load_recordings("data/sessions"), window_s=10.0)
+predictor = Predictor.from_bundle("bundles/nback", electrodes=dataset.electrodes)
+recording = load_recordings("data/sessions")[0]
+raw_window = recording.signal[:, : predictor.raw_samples]
+prediction = predictor.predict_raw(raw_window, current_time=predictor.window_s)
+print(prediction.label_name, prediction.confidence)
+```
+
 The run directory contains:
 
 | file | contents |

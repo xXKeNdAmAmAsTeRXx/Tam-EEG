@@ -13,6 +13,7 @@ from hotb_2026.classification.dataset import (
     iter_windows,
     label_at,
     make_synthetic_recording,
+    normalize_state_label,
 )
 from hotb_2026.preprocessing import PreprocessingConfig
 
@@ -122,6 +123,67 @@ def test_build_dataset_rejects_mismatched_sample_rates(
     )
     with pytest.raises(ValueError, match="same raw sample rate"):
         build_dataset([recording, faster], window_s=10.0)
+
+
+def test_normalize_state_label_maps_task_states_to_overload_tiers() -> None:
+    # Integer overload ids pass through unchanged.
+    assert normalize_state_label(0) == 0
+    assert normalize_state_label(1) == 1
+    assert normalize_state_label(2) == 2
+    # Task state names used by the N-back procedure are folded onto the
+    # three overload tiers (low/medium/high).
+    assert normalize_state_label("rest") == 0
+    assert normalize_state_label("1back") == 1
+    assert normalize_state_label("2back") == 2
+    assert normalize_state_label("3back") == 2
+
+
+def test_normalize_state_label_rejects_unknown_states() -> None:
+    with pytest.raises(ValueError, match="unsupported state label"):
+        normalize_state_label("2back2")
+
+
+def test_build_dataset_drops_windows_beyond_the_recording_end(
+    recording: Recording,
+) -> None:
+    # A 25 s window over a 60 s recording plans a third window that reaches past
+    # the end of the signal; it must be dropped so every window has the same,
+    # fixed length.
+    dataset = build_dataset([recording], window_s=25.0, drop_boundary=False)
+
+    assert dataset.n_windows == 2
+    assert all(window.shape[1] == dataset.X.shape[2] for window in dataset.X)
+    np.testing.assert_allclose(
+        dataset.window_end_s - dataset.window_start_s,
+        np.full(2, 25.0),
+    )
+
+
+def test_recording_from_dir_accepts_task_state_names(tmp_path) -> None:
+    session = tmp_path / "session"
+    session.mkdir()
+    (session / "meta.json").write_text(
+        json.dumps(
+            {
+                "session_id": "emilka_2",
+                "subject_id": "emilka",
+                "electrodes": ["Fp2", "P4", "F4", "F3", "PZ", "P3", "Fp1", "Pz"],
+                "sfreq": 250.0,
+                "n_samples": 2000,
+                "start_time_s": 0.0,
+            }
+        )
+    )
+    np.save(session / "signal.npy", np.zeros((2000, 8), dtype=np.float32))
+    np.save(session / "time.npy", np.arange(2000, dtype=np.float64) / 250.0)
+    (session / "state_changes.csv").write_text(
+        "time,label\n0.0,1back\n10.0,3back\n"
+    )
+
+    recording = Recording.from_dir(session)
+
+    assert [change.time_s for change in recording.state_changes] == [0.0, 10.0]
+    assert [change.label for change in recording.state_changes] == [1, 2]
 
 
 def test_dataset_save_load_roundtrip(

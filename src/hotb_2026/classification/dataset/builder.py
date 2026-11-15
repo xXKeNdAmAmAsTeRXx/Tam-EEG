@@ -204,8 +204,20 @@ def build_dataset(
             totals[key] += value
 
         for window in windows:
-            i0 = int(np.searchsorted(recording.time_s, window.start_s, side="left"))
-            i1 = int(np.searchsorted(recording.time_s, window.end_s, side="left"))
+            # Slice by sample index arithmetic, not by float searchsorted: state
+            # change times such as 14.280000000000001 must still map to the exact
+            # sample grid, otherwise a planned full-length window comes out short
+            # or with an extra sample and the dataset can no longer be stacked.
+            i0 = int(round(window.start_s * raw_sfreq))
+            i1 = int(round(window.end_s * raw_sfreq))
+            n_total = int(recording.signal.shape[1])
+            if i1 > n_total:
+                # The planned window reaches past the end of the recording; a
+                # fixed-length window is required, so it cannot be used.
+                totals["too_short"] += 1
+                continue
+            i0 = max(0, min(i0, n_total))
+            i1 = max(0, min(i1, n_total))
             raw = np.asarray(recording.signal)[:, i0:i1]
             if raw.shape[1] < preprocessor.min_samples:
                 totals["too_short"] += 1
