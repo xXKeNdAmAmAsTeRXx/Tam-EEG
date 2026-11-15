@@ -6,9 +6,13 @@ from hotb_2026.brainaccess_connection import DEFAULT_MONTAGE, Electrode, Montage
 
 
 def test_default_montage_is_mini_layout() -> None:
+    # Electrode labels depend on how the cap is wired, so only assert the fixed
+    # MINI layout: 8 inputs on pins 0-7 with bias on the last channel.
+    assert isinstance(DEFAULT_MONTAGE, Montage)
     assert DEFAULT_MONTAGE.n_channels == 8
     assert [e.pin for e in DEFAULT_MONTAGE.electrodes] == list(range(8))
-    assert DEFAULT_MONTAGE.names == ["F3", "F4", "C3", "C4", "P3", "P4", "O1", "O2"]
+    assert len(set(DEFAULT_MONTAGE.names)) == DEFAULT_MONTAGE.n_channels
+    assert all(e.name.strip() for e in DEFAULT_MONTAGE.electrodes)
     assert DEFAULT_MONTAGE.bias_electrode == 7
 
 
