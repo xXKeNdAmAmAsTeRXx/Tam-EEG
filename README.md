@@ -1,226 +1,187 @@
-# HOTB_2026 Project
+# Tam-EEG
 
-Heroes of The Brain Neurohackathon 2026! Project is not finished yet. 
-Provides a BrainAccess device connection and 8-channel EEG ML training framework. 
+**A framework for online EEG analysis and a cognitive-load-aware tamagotchi.**
 
-## Architecture
+Heroes of The Brain Neurohackathon 2026 project — **work in progress**.
 
-The system is split into several packages, each with a single responsibility.
-More packages (UI layers, additional connections, etc.) may be added later.
+Tam-EEG streams 8-channel EEG from a BrainAccess headset, classifies the
+user's cognitive state (RELAX / FOCUS / OVERLOAD) in real time, and feeds
+it to a virtual pet that lives in the terminal prompt: focused work makes
+the pet thrive, overload makes it wilt.
+
+```
+BrainAccess EEG  →  preprocessing  →  REVE embeddings  →  SVM classifier
+                                                                       │
+                                              UserState (RELAX/FOCUS/OVERLOAD)
+                                                                       ▼
+                          terminal pet: happiness, mood, life stage
+                          (FOCUS +10 · RELAX −1 · OVERLOAD −9 per report)
+```
+
+## What's in the box
+
+The system is split into packages, each with a single responsibility and its
+own README with usage details:
 
     src/hotb_2026/
-    ├── brainaccess_connection/   # connection to BrainAccess EEG hardware
+    ├── brainaccess_connection/   # LSL stream from BrainAccess EEG hardware
+    ├── record/                   # PsychoPy n-back recording sessions
     ├── preprocessing/            # per-window cleaning and standardization
     ├── features/                 # frozen REVE encoder + embedding cache
     ├── classification/           # training: dataset, Optuna search, SVM
     ├── reporting/                # metrics, figures, run reports
-    ├── model_store/              # save/deploy the trained model
-    ├── inference/                # load model + live prediction
+    ├── model_store/              # versioned model bundles, Hugging Face publish
+    ├── inference/                # load bundle + live window classification
     ├── mappers/                  # adapters between package models
-    ├── record/                   # PsychoPy n-back recording sessions
-    └── state_aware_agent/        # planned: state-aware decision-making
+    └── tamagotchi/               # the cognitive-load-aware virtual pet
 
-- **`brainaccess_connection`** — handles connecting to and streaming data from the
-  BrainAccess EEG device. See
+Each package README is the entry point for its part of the story:
+
+- **`brainaccess_connection`** — connects to and streams from the BrainAccess
+  EEG device (scan, stream, or `--simulate` a fake signal). Hardware notes,
+  CLI usage and the LSL stream layout:
   [`src/hotb_2026/brainaccess_connection/README.md`](src/hotb_2026/brainaccess_connection/README.md)
-  for hardware notes, CLI usage, and the LSL stream layout.
-- **`preprocessing`** — cleans each completed streamer window: notch 50 Hz →
-  band-pass 0.5–45 Hz → resample 250 → 200 Hz → z-score → clip ±15. See
+- **`record`** — PsychoPy n-back procedure (rest / 1-back / 3-back) that
+  records labeled EEG sessions:
+  [`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md)
+- **`preprocessing`** — cleans each streamer window: notch 50 Hz →
+  band-pass 0.5–45 Hz → resample 250→200 Hz → z-score → clip ±15:
   [`src/hotb_2026/preprocessing/README.md`](src/hotb_2026/preprocessing/README.md)
-  and the demo notebook
-  [`notebooks/preprocessing/01_preprocessing.ipynb`](notebooks/preprocessing/01_preprocessing.ipynb).
-- **`features`** — the frozen REVE-Base encoder (`brain-bzh/reve-base` plus
-  `brain-bzh/reve-positions`) and a content-addressed embedding cache. Shared by
-  training and live inference. Encoder revisions can be pinned for
-  reproducible bundles.
-- **`classification`** — training only: builds labeled windows from recordings,
-  tunes an RBF SVM over frozen REVE embeddings with Optuna and grouped
-  cross-validation, and evaluates on held-out groups. See
+- **`features`** — the frozen REVE-Base encoder
+  (`brain-bzh/reve-base` + `brain-bzh/reve-positions`) and a
+  content-addressed embedding cache, shared by training and inference.
+- **`classification`** — builds labeled windows, tunes an RBF SVM over
+  frozen REVE embeddings with Optuna and grouped cross-validation:
   [`src/hotb_2026/classification/README.md`](src/hotb_2026/classification/README.md)
-  and the notebook
-  [`notebooks/classification/01_training.ipynb`](notebooks/classification/01_training.ipynb).
-- **`reporting`** — metric bundles, Matplotlib figures, `metrics.json` and the
-  Markdown `report.md` for a training run.
-- **`model_store`** — writes a self-describing bundle (`model.joblib`,
-  `metadata.json`, `model_card.md`), versions it, and publishes it to a Hugging
-  Face model repo. See
-  [`src/hotb_2026/model_store/README.md`](src/hotb_2026/model_store/README.md)
-  and the notebook
-  [`notebooks/classification/02_save_and_publish.ipynb`](notebooks/classification/02_save_and_publish.ipynb).
-- **`inference`** — loads a bundle (local or pinned Hugging Face revision),
-  rebuilds the recorded preprocessing and frozen REVE encoder, and classifies
-  one live window at a time. Returns a `Prediction` dataclass (label,
-  confidence, probabilities, current time, predicted state-change time, model
-  version) and plugs into `EEGStreamer`. See
+- **`reporting`** — metric bundles, Matplotlib figures and a Markdown
+  `report.md` per training run.
+- **`model_store`** — self-describing bundles (`model.joblib`,
+  `metadata.json`, `model_card.md`), versioning and Hugging Face
+  publishing: [`src/hotb_2026/model_store/README.md`](src/hotb_2026/model_store/README.md)
+- **`inference`** — loads a bundle and classifies one live window at a
+  time; returns a `Prediction` (label, confidence, probabilities,
+  state-change time) and plugs into `EEGStreamer`:
   [`src/hotb_2026/inference/README.md`](src/hotb_2026/inference/README.md)
-  and the notebook
-  [`notebooks/inference/01_live_inference.ipynb`](notebooks/inference/01_live_inference.ipynb).
-- **`mappers`** — small adapters between package models, e.g.
-  `montage_to_list_electrode` turns a `Montage` into the electrode-name list
-  REVE's position encoding expects.
-- **`record`** — runs the PsychoPy n-back procedure (rest / 1-back / 3-back)
-  and records EEG sessions. See
-  [`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md).
-- **`state_aware_agent`** — planned, not implemented yet. Will consume the
-  classified state and drive the agent behavior.
+- **`mappers`** — small adapters, e.g. `montage_to_list_electrode` for
+  REVE's position encoding.
+- **`tamagotchi`** — **the reason it's called Tam-EEG**: a terminal pet
+  whose happiness is driven by the classified `UserState` — and by nothing
+  else (no commit counters, no CPU metrics, no `psutil`). Happiness moves
+  per classified report: FOCUS +10, RELAX −1, OVERLOAD −9. The pet ages
+  through life stages when you keep it (and yourself) in good shape:
+  [`src/hotb_2026/tamagotchi/README.md`](src/hotb_2026/tamagotchi/README.md)
 
-These packages are not the full set — new packages (e.g. UI, other connections)
-can be added alongside them in `src/hotb_2026/`.
+New packages (UI layers, other connections, …) can be added alongside them.
 
 ## End-to-end walkthrough
 
 [`notebooks/00_end_to_end_walkthrough.ipynb`](notebooks/00_end_to_end_walkthrough.ipynb)
-follows one synthetic session through every implemented package: stream
-contract, preprocessing, windowing, dataset construction, REVE embeddings,
-Optuna training, reporting and model packaging. It links to the package-specific
-notebooks for deeper dives, including
-[`notebooks/inference/01_live_inference.ipynb`](notebooks/inference/01_live_inference.ipynb)
-for loading the bundle and classifying live windows.
+follows one synthetic session through every package: stream contract,
+preprocessing, windowing, dataset construction, REVE embeddings, Optuna
+training, reporting and model packaging — and hands the final prediction to
+the tamagotchi. Package-specific notebooks live under
+[`notebooks/`](notebooks/), including the
+[`notebooks/tamagotchi/tamagotchi_demo.ipynb`](notebooks/tamagotchi/tamagotchi_demo.ipynb)
+demo of the state-driven pet.
 
-## Quick start: BrainAccess EEG
+## Quick start: EEG stream
 
 ```bash
 uv sync
 uv run hotb-brainaccess --scan          # list nearby headsets (~5 s)
 uv run hotb-brainaccess                 # stream the configured headset
-uv run hotb-brainaccess --simulate      # 250 Hz fake signal, no hardware
+uv run hotb-brainaccess --simulate      # fake signal, no hardware
 ```
 
-The headset, electrode layout, rate and bias come from
-[`config.py`](src/hotb_2026/brainaccess_connection/config.py) (default device:
-`BA MINI 078`, 250 Hz). Edit that file to point at a different headset or cap,
-or pass `--sfreq 500` for the higher hardware rate. The MINI supports 250 or
-500 Hz only.
+The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`,
+8 channels in µV. Device, layout and rate come from
+[`config.py`](src/hotb_2026/brainaccess_connection/config.py)
+(default device: `BA MINI 078`, 250 Hz).
 
-The stream is advertised over LSL as `BrainAccess EEG`, type `EEG`, 8 channels
-in µV at the configured rate. Full CLI and troubleshooting docs live in the
-[package README](src/hotb_2026/brainaccess_connection/README.md).
-
-## Quick start: classification training
+## Quick start: train a classifier
 
 ```bash
-# Synthetic recordings: exercises windowing, REVE embeddings, Optuna and reports.
+# Synthetic recordings: windowing, REVE embeddings, Optuna, reports.
 uv run python -m hotb_2026.classification.training --synthetic --trials 20
 
-# Recorded sessions in the on-disk format (see the classification README).
+# Recorded n-back sessions, on-disk format (see the classification README).
 uv run python -m hotb_2026.classification.training \
     --recordings data/sessions --out runs/nback --trials 60
 ```
 
-Each run writes `config.json`, metrics, Optuna trials, predictions, figures and
-a Markdown `report.md` to `runs/classification-<timestamp>`. See the
-[classification README](src/hotb_2026/classification/README.md) for the data
-format, labeling rules, grouped validation and options.
-
-## Quick start: save and publish a model
-
-Saving is a Python call because the fitted pipeline lives in the object returned
-by `train`:
-
-```python
-from hotb_2026.model_store import StoreConfig, save_model
-
-bundle = save_model(
-    result,
-    "bundles/nback",
-    config=StoreConfig(version="0.1.0"),
-    run_dir="runs/nback",
-)
-```
-
-Inspect and publish it with the CLI:
-
-```bash
-uv run python -m hotb_2026.model_store show bundles/nback
-
-HF_TOKEN=hf_... uv run python -m hotb_2026.model_store publish bundles/nback \
-    --repo-id ai-med/hotb-2026-nback-classifier
-```
-
-The bundle contains `model.joblib`, a self-describing `metadata.json` and a
-Hugging Face `model_card.md`. REVE weights are referenced by id, not uploaded.
-See the [model_store README](src/hotb_2026/model_store/README.md) for the
-metadata schema, versioning and the owner→user publishing fallback.
+Each run writes config, metrics, Optuna trials, predictions, figures and a
+Markdown `report.md` to `runs/classification-<timestamp>`.
 
 ## Quick start: live inference
-
-```python
-from hotb_2026.inference import Predictor
-
-predictor = Predictor.from_bundle("bundles/nback")
-prediction = predictor.predict_raw(raw_window, current_time=42.0)
-
-print(prediction.label_name, prediction.confidence)
-print(prediction.state_change_time)
-```
-
-A pinned Hub bundle works the same way:
-
-```python
-predictor = Predictor.from_pretrained(
-    "ai-med/hotb-2026-nback-classifier",
-    revision="0.1.0",
-)
-```
-
-Wire it into the streamer with one adapter:
-
-```python
-streamer = EEGStreamer(driver, MONTAGE, window_s=predictor.window_s + 1.0)
-streamer.add_processor(predictor.processor(on_prediction=consume_prediction))
-predictor.warmup()
-```
-
-Or run the simulated CLI:
 
 ```bash
 uv run python -m hotb_2026.inference --bundle bundles/nback --windows 3
 ```
 
-The inference package validates the metadata against the serialized model at
-load time and returns a `Prediction` dataclass with probabilities, timing and
-the model version. See the
-[inference README](src/hotb_2026/inference/README.md) for the input contract,
-state-change semantics and electrode alignment.
+Or in Python, wired into the streamer:
 
-## Quick start: recorded n-back sessions
+```python
+from hotb_2026.inference import Predictor
+
+predictor = Predictor.from_bundle("bundles/nback")
+streamer.add_processor(predictor.processor(on_prediction=consume_prediction))
+```
+
+`Prediction` carries the label, confidence, full probabilities and the
+state-change time. Details in the
+[inference README](src/hotb_2026/inference/README.md).
+
+## Quick start: the pet
+
+```bash
+uv run python -m hotb_2026.tamagotchi init --name Brainy --pet monkey
+uv run python -m hotb_2026.tamagotchi daemon       # background loop
+uv run python -m hotb_2026.tamagotchi install-hook   # pet above each prompt
+uv run python -m hotb_2026.tamagotchi feed
+```
+
+From the EEG side, feed the classifier output straight into the pet:
+
+```python
+from hotb_2026.tamagotchi import apply_state
+
+apply_state(pet, prediction.user_state)   # RELAX −1 · FOCUS +10 · OVERLOAD −9
+```
+
+State lives in `~/.hotb_tamagotchi/` (`pet.json`, `status.txt`,
+`daemon.pid`); override with `HOTB_TAMAGOTCHI_HOME`.
+
+Meet the team pet — **the monkey** (`--pet monkey`), drawn from the
+[`pets/monkey.py`](src/hotb_2026/tamagotchi/pets/monkey.py) plugin:
+
+```text
+   EGG          BABY                     ADULT
+  ( ovo )      @( ^o^ )@          @( ^o^ )@  _
+   -----         _~_                /(   )\__/
+              focused work       a happy grown monkey
+```
+
+Care for it and it hatches from the egg and grows through stages;
+overload it and happiness drops 9 points per report until it wilts.
+
+New pets are drop-in plugins — one file per pet under
+[`src/hotb_2026/tamagotchi/pets/`](src/hotb_2026/tamagotchi/pets/):
+ASCII art per stage and mood plus the decay and evolution parameters.
+See the [tamagotchi README](src/hotb_2026/tamagotchi/README.md).
+
+## Recorded data
+
+Record n-back sessions for training:
 
 ```bash
 uv run hotb-record --simulate --subject demo --sessions 1
 ```
 
-Each session is written to `data/<subject_id>/session_<n>/` with `meta.json`,
-`signal.npy`, `time.npy`, and `state_changes.csv`. Pass `--session <n>` to pick
-the session index; an existing session folder aborts the run instead of being
-overwritten. Instruction/feedback periods are cut out of the recorded signal. See
-[`src/hotb_2026/record/README.md`](src/hotb_2026/record/README.md).
+Sessions land in `data/<subject_id>/session_<n>/` (`meta.json`,
+`signal.npy`, `time.npy`, `state_changes.csv`). Existing session folders
+abort the run rather than being overwritten. Details in the
+[record README](src/hotb_2026/record/README.md).
 
-## Git Convention
+## License
 
-### Branches
-
-    <name>/<TYPE>/<what_is_changed>
-
-- `<name>` — your git username.
-- `<TYPE>` — one of `FEAT`, `FIX`, `CHORE`.
-- `<what_is_changed>` — short kebab-case description.
-
-Examples:
-
-    bajon1/FEAT/eeg-stream-connection
-    bajon1/FIX/reve-parsing
-    bajon1/CHORE/update-readme
-
-### Commits
-
-    <verb>(<scope>): <description>
-
-- `<verb>` — `add`, `fix`, or `chore` (lowercase).
-- `<scope>` — the affected package/module.
-- `<description>` — lowercase, imperative.
-
-Examples:
-
-    add(brainaccess_connection): connect to eeg device
-    fix(classification): handle empty signal
-    chore(readme): add architecture section
+MIT — see [`LICENSE`](LICENSE).
