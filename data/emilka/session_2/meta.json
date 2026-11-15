@@ -1,0 +1,19 @@
+{
+  "session_id": "emilka_2",
+  "subject_id": "emilka",
+  "electrodes": [
+    "Fp2",
+    "P4",
+    "F4",
+    "F3",
+    "PZ",
+    "P3",
+    "Fp1",
+    "Pz"
+  ],
+  "sfreq": 250.0,
+  "n_channels": 8,
+  "session_idx": 2,
+  "n_samples": 50860,
+  "created_at": "2026-11-15T08:32:10.651431+00:00"
+}
