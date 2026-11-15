@@ -10,7 +10,12 @@ requires-python = ">=3.13"
 dependencies = [
     "brainaccess>=4.0.0",
     "einops>=0.8.2",
+    "huggingface-hub>=0.30.0",
+    "joblib>=1.3.0",
     "numpy>=2.5.4",
+    "psychopy-lib>=2026.2.5",
+    "requests>=2.31.0",
+    "optuna>=4.0.0",
     "pylsl>=1.18.7",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
@@ -21,6 +26,8 @@ dependencies = [
 [project.scripts]
 hotb-2026 = "hotb_2026:main"
 hotb-brainaccess = "hotb_2026.brainaccess_connection.main:main"
+hotb-inference = "hotb_2026.inference.__main__:main"
+hotb-record = "hotb_2026.record.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.17,<0.13.0"]
@@ -30,5 +37,7 @@ build-backend = "uv_build"
 dev = [
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
+    "nbclient>=0.10.0",
+    "nbformat>=5.10.0",
     "pytest>=9.2.0",
 ]

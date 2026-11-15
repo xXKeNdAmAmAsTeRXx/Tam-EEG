@@ -2,4 +2,8 @@
 __pycache__
 .venv
 bacore.log
+<<<<<<< HEAD
 data
+=======
+/data
+>>>>>>> b2dfb35b7101d7a5daa002bf6e5da683d7300601
