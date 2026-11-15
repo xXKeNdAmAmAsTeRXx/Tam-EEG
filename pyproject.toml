@@ -11,6 +11,7 @@ dependencies = [
     "brainaccess>=4.0.0",
     "einops>=0.8.2",
     "numpy>=2.5.4",
+    "optuna>=4.0.0",
     "pylsl>=1.18.7",
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
