@@ -45,6 +45,7 @@ def embed_dataset(
         )
 
     model_name = getattr(encoder, "model_name", "unknown")
+    preprocessing = dict(getattr(dataset, "preprocessing", {}) or {})
     meta: dict[str, Any] = {
         "model_name": model_name,
         "electrodes": list(dataset.electrodes),
@@ -64,6 +65,9 @@ def embed_dataset(
                 "window_s": float(dataset.window_s),
                 "sfreq": float(dataset.sfreq),
                 "format_version": int(dataset.format_version),
+                # Preprocessing changes the windows themselves, so it must
+                # invalidate the cache even when the shape is unchanged.
+                "preprocessing": preprocessing,
             },
         )
         meta["cache_dir"] = str(cache_dir)
@@ -79,6 +83,13 @@ def embed_dataset(
         )
     meta["embedding_dim"] = int(embeddings.shape[1])
     meta["shape"] = list(embeddings.shape)
+    # Recorded after encoding so the values reflect the loaded model rather
+    # than the constructor defaults. ``None`` means the encoder did not expose
+    # them (for example the test double).
+    meta["pos_model_name"] = getattr(encoder, "pos_model_name", None)
+    meta["patch_size"] = getattr(encoder, "patch_size", None)
+    meta["revision"] = getattr(encoder, "revision", None)
+    meta["preprocessing"] = preprocessing
     return embeddings, meta
 
 

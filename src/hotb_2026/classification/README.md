@@ -42,6 +42,11 @@ sorted by time; the first change marks when the stream becomes labeled.
 Training and inference share the same input contract: ordered electrode names,
 per-sample current time, and timestamps where the label changes.
 
+`build_dataset` snapshots the exact `PreprocessingConfig` in
+`dataset.preprocessing`, and `EegDataset.save` persists it inside the `.npz`.
+The snapshot also travels through `result["embedding_meta"]`, so a model bundle
+can record the preprocessing that produced its embeddings.
+
 ## Train
 
 ```bash

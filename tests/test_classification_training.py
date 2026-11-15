@@ -24,6 +24,9 @@ class FakeEncoder:
     def __init__(self, electrodes) -> None:
         self.electrodes = tuple(electrodes)
         self.model_name = "fake-reve"
+        self.pos_model_name = "fake-positions"
+        self.patch_size = 64
+        self.revision = "test-revision"
         self.embedding_dim = len(self.electrodes)
 
     def encode(self, X: np.ndarray) -> np.ndarray:
@@ -159,6 +162,14 @@ def test_train_end_to_end(dataset, result) -> None:
         2,
     }
 
+    meta = result["embedding_meta"]
+    assert meta["model_name"] == "fake-reve"
+    assert meta["pos_model_name"] == "fake-positions"
+    assert meta["patch_size"] == 64
+    assert meta["revision"] == "test-revision"
+    assert meta["preprocessing"] == dataset.preprocessing
+    assert result["dataset_summary"]["preprocessing"] == dataset.preprocessing
+
 
 def test_train_from_embeddings_matches_training_inputs(dataset, encoder) -> None:
     embeddings = encoder.encode(dataset.X)
@@ -193,6 +204,35 @@ def test_embedding_cache_is_reused(dataset, encoder, tmp_path) -> None:
     assert json.loads((cache / "embeddings.json").read_text())[
         "model_name"
     ] == "fake-reve"
+
+
+def test_embedding_cache_invalidates_on_preprocessing(tmp_path) -> None:
+    cache = tmp_path / "embeddings"
+    config = TrainingConfig(n_splits=3, n_trials=2, seed=0)
+
+    first_dataset = make_dataset()
+    first_dataset.preprocessing = {"notch_freq": 50.0}
+    train(
+        first_dataset,
+        config=config,
+        encoder=FakeEncoder(first_dataset.electrodes),
+        cache_dir=str(cache),
+    )
+    first_key = json.loads((cache / "embeddings.json").read_text())["fingerprint"]
+
+    second_dataset = make_dataset()
+    second_dataset.preprocessing = {"notch_freq": 60.0}
+    train(
+        second_dataset,
+        config=config,
+        encoder=FakeEncoder(second_dataset.electrodes),
+        cache_dir=str(cache),
+    )
+    second_key = json.loads((cache / "embeddings.json").read_text())[
+        "fingerprint"
+    ]
+
+    assert first_key != second_key
 
 
 def test_write_run_creates_all_artifacts(result, tmp_path) -> None:

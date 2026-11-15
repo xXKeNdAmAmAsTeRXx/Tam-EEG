@@ -13,8 +13,9 @@ from __future__ import annotations
 import csv
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -222,6 +223,12 @@ class EegDataset:
     ``X`` is ``(n_windows, n_channels, n_samples)`` at ``sfreq`` (the
     preprocessing output rate). ``window_end_s`` is the *current time* of the
     window and ``state_change_s`` is when its label became active.
+
+    ``preprocessing`` snapshots the :class:`PreprocessingConfig` used to build
+    the windows. It is free-form so the dataset stays usable when recordings
+    were produced by a different pipeline version; downstream steps record it
+    verbatim so a saved model can be reproduced. It must be JSON-serializable
+    because :meth:`save` persists it.
     """
 
     X: np.ndarray
@@ -236,6 +243,7 @@ class EegDataset:
     window_s: float
     label_names: tuple[str, ...]
     format_version: int = FORMAT_VERSION
+    preprocessing: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         X = np.asarray(self.X)
@@ -279,6 +287,18 @@ class EegDataset:
         if self.sfreq <= 0 or self.raw_sfreq <= 0 or self.window_s <= 0:
             raise ValueError("sfreq, raw_sfreq and window_s must be positive")
 
+        if not isinstance(self.preprocessing, dict):
+            raise ValueError(
+                "preprocessing must be a dict, got "
+                f"{type(self.preprocessing).__name__}"
+            )
+        try:
+            json.dumps(self.preprocessing)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(
+                "preprocessing must be JSON-serializable"
+            ) from exc
+
     @property
     def n_windows(self) -> int:
         return int(self.X.shape[0])
@@ -303,6 +323,7 @@ class EegDataset:
             "groups": sorted(str(group) for group in np.unique(groups)),
             "label_names": list(self.label_names),
             "electrodes": list(self.electrodes),
+            "preprocessing": dict(self.preprocessing),
         }
 
     def save(self, path: str | Path) -> None:
@@ -321,12 +342,22 @@ class EegDataset:
             sfreq=np.asarray(self.sfreq),
             raw_sfreq=np.asarray(self.raw_sfreq),
             window_s=np.asarray(self.window_s),
+            preprocessing=np.asarray(
+                json.dumps(self.preprocessing, sort_keys=True)
+            ),
             format_version=np.asarray(self.format_version),
         )
 
     @classmethod
     def load(cls, path: str | Path) -> "EegDataset":
         with np.load(_npz_path(path), allow_pickle=False) as data:
+            # ``preprocessing`` was added after the first datasets were saved;
+            # older files simply have no such entry.
+            preprocessing: dict[str, Any] = {}
+            if "preprocessing" in data.files:
+                raw = data["preprocessing"].item()
+                if raw:
+                    preprocessing = json.loads(raw)
             return cls(
                 X=data["X"],
                 y=data["y"],
@@ -339,6 +370,7 @@ class EegDataset:
                 sfreq=float(data["sfreq"]),
                 raw_sfreq=float(data["raw_sfreq"]),
                 window_s=float(data["window_s"]),
+                preprocessing=preprocessing,
                 format_version=int(data["format_version"]),
             )
 

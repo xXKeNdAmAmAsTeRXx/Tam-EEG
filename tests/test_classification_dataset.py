@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+from dataclasses import asdict, replace
+
 import numpy as np
 import pytest
 
@@ -11,6 +14,7 @@ from hotb_2026.classification.dataset import (
     label_at,
     make_synthetic_recording,
 )
+from hotb_2026.preprocessing import PreprocessingConfig
 
 
 @pytest.fixture(scope="module")
@@ -106,6 +110,20 @@ def test_build_dataset_rejects_mismatched_electrodes(
         build_dataset([other, reordered], window_s=10.0)
 
 
+def test_build_dataset_rejects_mismatched_sample_rates(
+    recording: Recording,
+) -> None:
+    faster = make_synthetic_recording(
+        duration_s=60.0,
+        sfreq=200.0,
+        state_duration_s=20.0,
+        seed=5,
+        session_id="session-e",
+    )
+    with pytest.raises(ValueError, match="same raw sample rate"):
+        build_dataset([recording, faster], window_s=10.0)
+
+
 def test_dataset_save_load_roundtrip(
     dataset: EegDataset, tmp_path
 ) -> None:
@@ -122,6 +140,67 @@ def test_dataset_save_load_roundtrip(
     assert loaded.electrodes == dataset.electrodes
     assert loaded.label_names == dataset.label_names
     assert loaded.sfreq == pytest.approx(dataset.sfreq)
+    assert loaded.preprocessing == json.loads(json.dumps(dataset.preprocessing))
+
+
+def test_build_dataset_records_preprocessing(
+    recording: Recording, tmp_path
+) -> None:
+    config = PreprocessingConfig(
+        sfreq=recording.sfreq,
+        notch_freq=60.0,
+        notch_q=20.0,
+        bandpass=(1.0, 40.0),
+        filter_order=3,
+        target_sfreq=200.0,
+        zscore=False,
+        clip=10.0,
+    )
+    dataset = build_dataset([recording], window_s=10.0, preprocess_config=config)
+
+    expected = asdict(config)
+    assert dataset.preprocessing == expected
+    assert dataset.summary()["preprocessing"] == expected
+
+    path = tmp_path / "preprocessed"
+    dataset.save(path)
+    # JSON has no tuples, so the band-pass edges come back as a list.
+    assert EegDataset.load(path).preprocessing == json.loads(json.dumps(expected))
+
+
+def test_load_dataset_without_preprocessing_is_backward_compatible(
+    dataset: EegDataset, tmp_path
+) -> None:
+    path = tmp_path / "legacy.npz"
+    np.savez_compressed(
+        path,
+        X=dataset.X,
+        y=dataset.y,
+        groups=dataset.groups,
+        window_start_s=dataset.window_start_s,
+        window_end_s=dataset.window_end_s,
+        state_change_s=dataset.state_change_s,
+        electrodes=np.asarray(dataset.electrodes, dtype=str),
+        label_names=np.asarray(dataset.label_names, dtype=str),
+        sfreq=np.asarray(dataset.sfreq),
+        raw_sfreq=np.asarray(dataset.raw_sfreq),
+        window_s=np.asarray(dataset.window_s),
+        format_version=np.asarray(1),
+    )
+
+    loaded = EegDataset.load(path)
+    assert loaded.preprocessing == {}
+    np.testing.assert_allclose(loaded.X, dataset.X)
+
+
+def test_dataset_rejects_non_dict_preprocessing(dataset: EegDataset) -> None:
+    with pytest.raises(ValueError, match="preprocessing must be a dict"):
+        replace(dataset, preprocessing=["not", "a", "dict"])
+
+
+def test_dataset_rejects_non_json_preprocessing(dataset: EegDataset) -> None:
+    with pytest.raises(ValueError, match="JSON-serializable"):
+        replace(dataset, preprocessing={"bad": object()})
 
 
 def test_recording_dir_roundtrip(recording: Recording, tmp_path) -> None:

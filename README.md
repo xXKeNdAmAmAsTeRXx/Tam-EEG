@@ -13,7 +13,7 @@ More packages (UI layers, additional connections, etc.) may be added later.
     ├── features/                 # frozen REVE encoder + embedding cache
     ├── classification/           # training: dataset, Optuna search, SVM
     ├── reporting/                # metrics, figures, run reports
-    ├── model_store/              # planned: save/deploy the trained model
+    ├── model_store/              # save/deploy the trained model
     ├── inference/                # planned: load model + live prediction
     ├── mappers/                  # adapters between package models
     └── state_aware_agent/        # planned: state-aware decision-making
@@ -38,8 +38,12 @@ More packages (UI layers, additional connections, etc.) may be added later.
   [`notebooks/classification/01_training.ipynb`](notebooks/classification/01_training.ipynb).
 - **`reporting`** — metric bundles, Matplotlib figures, `metrics.json` and the
   Markdown `report.md` for a training run.
-- **`model_store`** — planned, not implemented yet. Will persist the trained
-  pipeline in a deployable format and publish it to Hugging Face.
+- **`model_store`** — writes a self-describing bundle (`model.joblib`,
+  `metadata.json`, `model_card.md`), versions it, and publishes it to a Hugging
+  Face model repo. See
+  [`src/hotb_2026/model_store/README.md`](src/hotb_2026/model_store/README.md)
+  and the notebook
+  [`notebooks/classification/02_save_and_publish.ipynb`](notebooks/classification/02_save_and_publish.ipynb).
 - **`inference`** — planned, not implemented yet. Will load the saved model,
   run live inference, and expose a `Prediction` dataclass (label, confidence,
   probabilities, state-change time, current time, model version).
@@ -86,6 +90,36 @@ Each run writes `config.json`, metrics, Optuna trials, predictions, figures and
 a Markdown `report.md` to `runs/classification-<timestamp>`. See the
 [classification README](src/hotb_2026/classification/README.md) for the data
 format, labeling rules, grouped validation and options.
+
+## Quick start: save and publish a model
+
+Saving is a Python call because the fitted pipeline lives in the object returned
+by `train`:
+
+```python
+from hotb_2026.model_store import StoreConfig, save_model
+
+bundle = save_model(
+    result,
+    "bundles/nback",
+    config=StoreConfig(version="0.1.0"),
+    run_dir="runs/nback",
+)
+```
+
+Inspect and publish it with the CLI:
+
+```bash
+uv run python -m hotb_2026.model_store show bundles/nback
+
+HF_TOKEN=hf_... uv run python -m hotb_2026.model_store publish bundles/nback \
+    --repo-id ai-med/hotb-2026-nback-classifier
+```
+
+The bundle contains `model.joblib`, a self-describing `metadata.json` and a
+Hugging Face `model_card.md`. REVE weights are referenced by id, not uploaded.
+See the [model_store README](src/hotb_2026/model_store/README.md) for the
+metadata schema, versioning and the owner→user publishing fallback.
 
 ## Git Convention
 

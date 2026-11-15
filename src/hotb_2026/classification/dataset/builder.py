@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from bisect import bisect_right
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 import numpy as np
 
@@ -173,7 +173,14 @@ def build_dataset(
         "short_state": 0,
         "too_short": 0,
     }
-    raw_sfreq = recordings[0].sfreq
+    raw_sfreq = float(recordings[0].sfreq)
+    for recording in recordings[1:]:
+        if not np.isclose(recording.sfreq, raw_sfreq):
+            raise ValueError(
+                "all recordings must use the same raw sample rate: "
+                f"{raw_sfreq:g} vs {recording.sfreq:g} in session "
+                f"{recording.session_id!r}"
+            )
 
     for recording in recordings:
         config = preprocess_config
@@ -226,6 +233,12 @@ def build_dataset(
         else:
             label_names = tuple(f"class_{index}" for index in range(n_labels))
 
+    preprocessing = asdict(
+        preprocess_config
+        if preprocess_config is not None
+        else PreprocessingConfig(sfreq=float(raw_sfreq))
+    )
+
     log.info(
         "Built %d windows from %d recordings (%d groups); dropped %s",
         len(X),
@@ -246,6 +259,7 @@ def build_dataset(
         raw_sfreq=float(raw_sfreq),
         window_s=float(window_s),
         label_names=tuple(label_names),
+        preprocessing=preprocessing,
     )
 
 
