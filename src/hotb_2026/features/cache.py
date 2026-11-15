@@ -69,6 +69,9 @@ def load_or_encode(
     pos_model_name = getattr(encoder, "pos_model_name", None)
     if pos_model_name:
         extra.setdefault("pos_model_name", pos_model_name)
+    # A pinned revision is part of the encoder identity even when the model id
+    # is unchanged (for example ``main`` moving forward).
+    extra.setdefault("revision", getattr(encoder, "revision", None))
     key = fingerprint(X, tuple(encoder.electrodes), model_name, extra)
 
     if npy_path.exists() and meta_path.exists():

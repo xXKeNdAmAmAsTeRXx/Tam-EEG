@@ -14,7 +14,7 @@ More packages (UI layers, additional connections, etc.) may be added later.
     ├── classification/           # training: dataset, Optuna search, SVM
     ├── reporting/                # metrics, figures, run reports
     ├── model_store/              # save/deploy the trained model
-    ├── inference/                # planned: load model + live prediction
+    ├── inference/                # load model + live prediction
     ├── mappers/                  # adapters between package models
     └── state_aware_agent/        # planned: state-aware decision-making
 
@@ -29,7 +29,8 @@ More packages (UI layers, additional connections, etc.) may be added later.
   [`notebooks/preprocessing/01_preprocessing.ipynb`](notebooks/preprocessing/01_preprocessing.ipynb).
 - **`features`** — the frozen REVE-Base encoder (`brain-bzh/reve-base` plus
   `brain-bzh/reve-positions`) and a content-addressed embedding cache. Shared by
-  training and, later, live inference.
+  training and live inference. Encoder revisions can be pinned for
+  reproducible bundles.
 - **`classification`** — training only: builds labeled windows from recordings,
   tunes an RBF SVM over frozen REVE embeddings with Optuna and grouped
   cross-validation, and evaluates on held-out groups. See
@@ -44,9 +45,14 @@ More packages (UI layers, additional connections, etc.) may be added later.
   [`src/hotb_2026/model_store/README.md`](src/hotb_2026/model_store/README.md)
   and the notebook
   [`notebooks/classification/02_save_and_publish.ipynb`](notebooks/classification/02_save_and_publish.ipynb).
-- **`inference`** — planned, not implemented yet. Will load the saved model,
-  run live inference, and expose a `Prediction` dataclass (label, confidence,
-  probabilities, state-change time, current time, model version).
+- **`inference`** — loads a bundle (local or pinned Hugging Face revision),
+  rebuilds the recorded preprocessing and frozen REVE encoder, and classifies
+  one live window at a time. Returns a `Prediction` dataclass (label,
+  confidence, probabilities, current time, predicted state-change time, model
+  version) and plugs into `EEGStreamer`. See
+  [`src/hotb_2026/inference/README.md`](src/hotb_2026/inference/README.md)
+  and the notebook
+  [`notebooks/inference/01_live_inference.ipynb`](notebooks/inference/01_live_inference.ipynb).
 - **`mappers`** — small adapters between package models, e.g.
   `montage_to_list_electrode` turns a `Montage` into the electrode-name list
   REVE's position encoding expects.
@@ -61,8 +67,10 @@ can be added alongside them in `src/hotb_2026/`.
 [`notebooks/00_end_to_end_walkthrough.ipynb`](notebooks/00_end_to_end_walkthrough.ipynb)
 follows one synthetic session through every implemented package: stream
 contract, preprocessing, windowing, dataset construction, REVE embeddings,
-Optuna training, reporting, model packaging and loading the bundle for
-inference. It links to the package-specific notebooks for deeper dives.
+Optuna training, reporting and model packaging. It links to the package-specific
+notebooks for deeper dives, including
+[`notebooks/inference/01_live_inference.ipynb`](notebooks/inference/01_live_inference.ipynb)
+for loading the bundle and classifying live windows.
 
 ## Quick start: BrainAccess EEG
 
@@ -128,6 +136,47 @@ The bundle contains `model.joblib`, a self-describing `metadata.json` and a
 Hugging Face `model_card.md`. REVE weights are referenced by id, not uploaded.
 See the [model_store README](src/hotb_2026/model_store/README.md) for the
 metadata schema, versioning and the owner→user publishing fallback.
+
+## Quick start: live inference
+
+```python
+from hotb_2026.inference import Predictor
+
+predictor = Predictor.from_bundle("bundles/nback")
+prediction = predictor.predict_raw(raw_window, current_time=42.0)
+
+print(prediction.label_name, prediction.confidence)
+print(prediction.state_change_time)
+```
+
+A pinned Hub bundle works the same way:
+
+```python
+predictor = Predictor.from_pretrained(
+    "ai-med/hotb-2026-nback-classifier",
+    revision="0.1.0",
+)
+```
+
+Wire it into the streamer with one adapter:
+
+```python
+streamer = EEGStreamer(driver, MONTAGE, window_s=predictor.window_s + 1.0)
+streamer.add_processor(predictor.processor(on_prediction=consume_prediction))
+predictor.warmup()
+```
+
+Or run the simulated CLI:
+
+```bash
+uv run python -m hotb_2026.inference --bundle bundles/nback --windows 3
+```
+
+The inference package validates the metadata against the serialized model at
+load time and returns a `Prediction` dataclass with probabilities, timing and
+the model version. See the
+[inference README](src/hotb_2026/inference/README.md) for the input contract,
+state-change semantics and electrode alignment.
 
 ## Git Convention
 

@@ -21,8 +21,10 @@ log = logging.getLogger(__name__)
 DEFAULT_MODEL_NAME = "brain-bzh/reve-base"
 DEFAULT_POS_MODEL_NAME = "brain-bzh/reve-positions"
 
-# (signal model name, position model name) -> (signal, positions, embed_dim, patch_size)
-_MODEL_CACHE: dict[tuple[str, str], tuple[Any, Any, int, int]] = {}
+# (signal model name, position model name, revision) -> models and shape
+_MODEL_CACHE: dict[
+    tuple[str, str, str | None], tuple[Any, Any, int, int]
+] = {}
 _MODEL_LOCK = threading.Lock()
 
 
@@ -59,9 +61,11 @@ def resolve_device(device: str | None) -> str:
 
 
 def _load_models(
-    model_name: str, pos_model_name: str
+    model_name: str,
+    pos_model_name: str,
+    revision: str | None = None,
 ) -> tuple[Any, Any, int, int]:
-    key = (model_name, pos_model_name)
+    key = (model_name, pos_model_name, revision)
     with _MODEL_LOCK:
         cached = _MODEL_CACHE.get(key)
         if cached is not None:
@@ -69,15 +73,23 @@ def _load_models(
 
         from transformers import AutoModel
 
-        log.info("Loading REVE position model %s", pos_model_name)
+        log.info(
+            "Loading REVE position model %s (revision %s)",
+            pos_model_name,
+            revision or "default",
+        )
         pos_model = AutoModel.from_pretrained(
-            pos_model_name, trust_remote_code=True
+            pos_model_name, trust_remote_code=True, revision=revision
         )
         pos_model.eval()
 
-        log.info("Loading REVE signal model %s", model_name)
+        log.info(
+            "Loading REVE signal model %s (revision %s)",
+            model_name,
+            revision or "default",
+        )
         signal_model = AutoModel.from_pretrained(
-            model_name, trust_remote_code=True
+            model_name, trust_remote_code=True, revision=revision
         )
         signal_model.eval()
         for param in signal_model.parameters():
@@ -159,6 +171,9 @@ class ReveEncoder:
         Hugging Face id of the signal transformer.
     pos_model_name:
         Hugging Face id of the electrode position bank.
+    revision:
+        Git revision, tag or branch of both Hugging Face repositories. Pin it
+        when a model bundle records an encoder revision.
     device:
         ``None``/``"auto"``, ``"cpu"``, ``"mps"`` or ``"cuda"``.
     batch_size:
@@ -172,10 +187,14 @@ class ReveEncoder:
         pos_model_name: str = DEFAULT_POS_MODEL_NAME,
         device: str | None = None,
         batch_size: int = 16,
+        revision: str | None = None,
     ):
         self.electrodes = tuple(electrode_names(electrodes))
         self.model_name = model_name
         self.pos_model_name = pos_model_name
+        if revision is not None and not str(revision).strip():
+            raise ValueError("revision must be a non-empty string or None")
+        self.revision = str(revision).strip() if revision is not None else None
         self.device = device
         self.batch_size = int(batch_size)
         if self.batch_size < 1:
@@ -196,7 +215,7 @@ class ReveEncoder:
             return
 
         signal_model, pos_model, embed_dim, patch_size = _load_models(
-            self.model_name, self.pos_model_name
+            self.model_name, self.pos_model_name, self.revision
         )
         device = resolve_device(self.device)
 
@@ -236,6 +255,14 @@ class ReveEncoder:
     # ------------------------------------------------------------------ #
     # public API
     # ------------------------------------------------------------------ #
+    def load(self) -> None:
+        """Load the frozen weights and position bank into memory.
+
+        Call this before starting a live stream so the first window does not
+        pay the model-loading cost. :meth:`encode` loads lazily as well.
+        """
+        self._ensure_loaded()
+
     def encode(self, X: Any) -> np.ndarray:
         """Encode windows into attention-pooled embeddings.
 

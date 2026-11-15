@@ -111,16 +111,29 @@ uv run python -m hotb_2026.model_store publish bundles/nback
 
 ## Using a bundle
 
+Use [`hotb_2026.inference`](../inference/README.md); it validates
+`metadata.json`, rebuilds the recorded preprocessing and encoder, and returns a
+`Prediction` dataclass:
+
+```python
+from hotb_2026.inference import Predictor
+
+predictor = Predictor.from_bundle("bundles/nback")
+prediction = predictor.predict_raw(raw_window, current_time=42.0)
+print(prediction.label_name, prediction.confidence)
+```
+
+The raw escape hatch is still a plain joblib pipeline:
+
 ```python
 import joblib
 
 pipeline = joblib.load("model.joblib")
 probabilities = pipeline.predict_proba(embedding)  # (n, n_classes)
-label = pipeline.predict(embedding)
 ```
 
 `embedding` must come from the encoder and preprocessing recorded in
-`metadata.json`. Rebuilding that pipeline is the job of `hotb_2026.inference`.
+`metadata.json`, so prefer `Predictor` unless you are debugging the bundle.
 
 ## Demo
 

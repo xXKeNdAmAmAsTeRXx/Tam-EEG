@@ -367,7 +367,9 @@ def render_model_card(metadata: dict[str, Any]) -> str:
         "```",
         "",
         "`embedding` must come from the same frozen encoder and window "
-        "preprocessing recorded in `metadata.json`.",
+        "preprocessing recorded in `metadata.json`. In production use "
+        "`hotb_2026.inference.Predictor`, which validates this contract and "
+        "applies the recorded preprocessing automatically.",
         "",
         "## Files",
         "",

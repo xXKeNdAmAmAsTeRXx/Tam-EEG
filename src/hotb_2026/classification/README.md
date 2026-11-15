@@ -110,3 +110,12 @@ write_run("runs/nback", result)
 `train` returns a plain dict. `result["model"]` is the pipeline trained on all
 windows; `result["holdout_model"]` produced the held-out score. Saving these
 models belongs to the `model_store` step, not to `classification`.
+
+## From training to live inference
+
+The bundle written by `model_store` records the ordered electrodes, window
+length, sample rates, encoder ids/revision and preprocessing snapshot produced
+here. [`hotb_2026.inference`](../inference/README.md) rebuilds exactly that
+pipeline, so training and live predictions see the same windows. It returns a
+`Prediction` dataclass and provides a `WindowedPreprocessor` adapter for
+`EEGStreamer`.
