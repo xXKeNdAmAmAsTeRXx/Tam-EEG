@@ -1,6 +1,7 @@
 # HOTB_2026 Project
 
-Heroes of The Brain Neurohackathon 2026!
+Heroes of The Brain Neurohackathon 2026! Project is not finished yet. 
+Provides a BrainAccess device connection and 8-channel EEG ML training framework. 
 
 ## Architecture
 
