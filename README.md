@@ -2,8 +2,11 @@
 
 **A framework for online EEG analysis and a cognitive-load-aware tamagotchi.**
 
+![tameeg image](assets/tameeg.png)
+
 Heroes of The Brain Neurohackathon 2026 project — **work in progress**.
 
+## What is it?
 Tam-EEG streams 8-channel EEG from a BrainAccess headset, classifies the
 user's cognitive state (RELAX / FOCUS / OVERLOAD) in real time, and feeds
 it to a virtual pet that lives in the terminal prompt: focused work makes
